@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>MES - Динамическое планирование с управлением участками</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      max-width: 1200px;
+    }
+    h1, h2 {
+      margin-bottom: 10px;
+    }
+    .flex-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input[type="text"], input[type="date"], select {
+      width: 220px;
+      padding: 5px;
+      margin-top: 5px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 8px 15px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #gantt {
+      height: 450px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+    }
+    #ordersList {
+      max-height: 250px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      flex: 1;
+      min-width: 300px;
+    }
+    #ordersList div {
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #ordersList div:hover {
+      background-color: #f0f0f0;
+    }
+    .selected {
+      background-color: #d0eaff;
+    }
+    .equipment-tabs {
+      margin-bottom: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .equipment-tabs button {
+      padding: 8px 15px;
+      border: none;
+      background-color: #eee;
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: bold;
+      position: relative;
+    }
+    .equipment-tabs button.active {
+      background-color: #007bff;
+      color: white;
+    }
+    .equipment-tabs button .del-eq {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      color: red;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      user-select: none;
+    }
+    .load-info {
+      font-weight: bold;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+    .search-box {
+      margin-bottom: 10px;
+    }
+    .form-section {
+      max-width: 400px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>MES - Динамическое планирование с управлением участками</h1>
+
+<div class="form-section">
+  <h2>Управление участками (оборудованием)</h2>
+  <form id="addEquipmentForm" class="flex-row" style="align-items: flex-end;">
+    <div>
+      <label for="newEquipmentName">Название нового участка:</label>
+      <input type="text" id="newEquipmentName" required />
+    </div>
+    <button type="submit">Добавить участок</button>
+  </form>
+</div>
+
+<div class="equipment-tabs" id="equipmentTabs"></div>
+<div id="loadInfo" class="load-info"></div>
+
+<div class="flex-row">
+  <div style="flex: 2; min-width: 600px;">
+    <div id="gantt"></div>
+  </div>
+
+  <div style="flex: 1; min-width: 320px;">
+    <h2>Заказы</h2>
+    <input type="text" id="searchOrders" class="search-box" placeholder="Поиск заказов..." />
+    <div id="ordersList"></div>
+  </div>
+</div>
+
+<div class="form-section">
+  <h2>Добавить / Редактировать заказ</h2>
+  <form id="orderForm">
+    <input type="hidden" id="orderId" />
+    <label for="orderName">Название заказа:</label>
+    <input type="text" id="orderName" name="orderName" required />
+
+    <label for="equipmentSelect">Оборудование (участок):</label>
+    <select id="equipmentSelect" name="equipmentSelect" required></select>
+
+    <label for="startDate">Дата начала:</label>
+    <input type="date" id="startDate" name="startDate" required />
+
+    <label for="endDate">Дата окончания:</label>
+    <input type="date" id="endDate" name="endDate" required />
+
+    <button type="submit" id="saveBtn">Добавить заказ</button>
+    <button type="button" id="cancelEditBtn" style="display:none; margin-left:10px;">Отмена</button>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.js"></script>
+<script>
+  const STORAGE_EQUIPMENT_KEY = 'mes_equipment_dynamic';
+  const STORAGE_ORDERS_KEY = 'mes_orders_dynamic';
+
+  // Элементы
+  const equipmentTabs = document.getElementById('equipmentTabs');
+  const loadInfo = document.getElementById('loadInfo');
+  const ordersList = document.getElementById('ordersList');
+  const equipmentSelect = document.getElementById('equipmentSelect');
+  const orderForm = document.getElementById('orderForm');
+  const orderIdInput = document.getElementById('orderId');
+  const orderNameInput = document.getElementById('orderName');
+  const startDateInput = document.getElementById('startDate');
+  const endDateInput = document.getElementById('endDate');
+  const saveBtn = document.getElementById('saveBtn');
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const addEquipmentForm = document.getElementById('addEquipmentForm');
+  const newEquipmentNameInput = document.getElementById('newEquipmentName');
+  const searchOrdersInput = document.getElementById('searchOrders');
+
+  let currentEquipmentId = null;
+  let ganttInstance = null;
+  let selectedOrderId = null;
+
+  // Загрузка оборудования
+  function loadEquipment() {
+    const saved = localStorage.getItem(STORAGE_EQUIPMENT_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    // Дефолтные участки
+    return [
+      { id: 'eq1', name: 'Участок 1 - Станок A' },
+      { id: 'eq2', name: 'Участок 2 - Станок B' },
+      { id: 'eq3', name: 'Участок 3 - Станок C' }
+    ];
+  }
+
+  // Сохранение оборудования
+  function saveEquipment(equipment) {
+    localStorage.setItem(STORAGE_EQUIPMENT_KEY, JSON.stringify(equipment));
+  }
+
+  // Загрузка заказов
+  function loadOrders() {
+    const saved = localStorage.getItem(STORAGE_ORDERS_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    // Дефолтные заказы
+    return [
+      { id: 'Task 1', name: 'Заказ 1', start: '2024-01-01', end: '2024-01-10', progress: 20, equipmentId: 'eq1' },
+      { id: 'Task 2', name: 'Заказ 2', start: '2024-01-05', end: '2024-01-20', progress: 50, equipmentId: 'eq2' },
+      { id: 'Task 3', name: 'Заказ 3', start: '2024-01-15', end: '2024-01-25', progress: 10, equipmentId: 'eq1' }
+    ];
+  }
+
+  // Сохранение заказов
+  function saveOrders(orders) {
+    localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(orders));
+  }
+
+  // Генерация уникального ID для заказа
+  function generateOrderId(orders) {
+    let maxId = 0;
+    orders.forEach(o => {
+      const num = parseInt(o.id.replace('Task ', ''));
+      if (!isNaN(num) && num > maxId) maxId = num;
+    });
+    return 'Task ' + (maxId + 1);
+  }
+
+  // Генерация уникального ID для оборудования
+  function generateEquipmentId(equipment) {
+    let maxId = 0;
+    equipment.forEach(eq => {
+      const num = parseInt(eq.id.replace('eq', ''));
+      if (!isNaN(num) && num > maxId) maxId = num;
+    });
+    return 'eq' + (maxId + 1);
+  }
+
+  // Инициализация селекта оборудования в форме заказа
+  function initEquipmentSelect(equipment) {
+    equipmentSelect.innerHTML = '';
+    equipment.forEach(eq => {
+      const option = document.createElement('option');
+      option.value = eq.id;
+      option.textContent = eq.name;
+      equipmentSelect.appendChild(option);
+    });
+  }
+
+  // Рендер вкладок оборудования с возможностью удаления
+  function renderEquipmentTabs(equipment) {
+    equipmentTabs.innerHTML = '';
+    equipment.forEach(eq => {
+      const btn = document.createElement('button');
+      btn.textContent = eq.name;
+      btn.classList.toggle('active', eq.id === currentEquipmentId);
+      btn.onclick = () => {
+        currentEquipmentId = eq.id;
+        renderEquipmentTabs(equipment);
+        renderGantt();
+        renderOrdersList();
+        renderLoadInfo();
+        clearForm();
+      };
+
+      // Кнопка удаления участка
+      const delBtn = document.createElement('span');
+      delBtn.textContent = '×';
+      delBtn.className = 'del-eq';
+      delBtn.title = 'Удалить участок';
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        deleteEquipment(eq.id);
+      };
+
+      btn.appendChild(delBtn);
+      equipmentTabs.appendChild(btn);
+    });
+  }
+
+  // Удаление оборудования с проверкой заказов
+  function deleteEquipment(equipmentId) {
+    const orders = loadOrders();
+    const hasOrders = orders.some(o => o.equipmentId === equipmentId);
+    if (hasOrders) {
+      alert('Нельзя удалить участок с существующими заказами. Сначала удалите или перенесите заказы.');
+      return;
+    }
+    let equipment = loadEquipment();
+    equipment = equipment.filter(eq => eq.id !== equipmentId);
+    saveEquipment(equipment);
+    if (currentEquipmentId === equipmentId) {
+      currentEquipmentId = equipment.length ? equipment[0].id : null;
+    }
+    initEquipmentSelect(equipment);
+    renderEquipmentTabs(equipment);
+    renderGantt();
+    renderOrdersList();
+    renderLoadInfo();
+    clearForm();
+  }
+
+  // Фильтрация заказов по текущему участку и поиску
+  function getFilteredOrders() {
+    const orders = loadOrders();
+    const searchText = searchOrdersInput.value.trim().toLowerCase();
+    return orders.filter(o => 
+      o.equipmentId === currentEquipmentId && 
+      (o.name.toLowerCase().includes(searchText))
+    );
+  }
+
+  // Подсчет загрузки оборудования (в днях)
+  function calculateLoad(orders) {
+    let totalDays = 0;
+    orders.forEach(t => {
+      const start = new Date(t.start);
+      const end = new Date(t.end);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      totalDays += diffDays;
+    });
+    return totalDays;
+  }
+
+  // Отображение загрузки оборудования
+  function renderLoadInfo() {
+    if (!currentEquipmentId) {
+      loadInfo.textContent = 'Нет доступных участков.';
+      return;
+    }
+    const orders = getFilteredOrders();
+    const days = calculateLoad(orders);
+    const equipment = loadEquipment().find(eq => eq.id === currentEquipmentId);
+    loadInfo.textContent = `Загрузка оборудования "${equipment ? equipment.name : ''}": ${days} дней занятости`;
+  }
+
+  // Инициализация и обновление диаграммы Ганта
+  function renderGantt() {
+    if (!currentEquipmentId) {
+      document.querySelector('#gantt').innerHTML = '<p>Нет оборудования для отображения.</p>';
+      return;
+    }
+    const orders = getFilteredOrders();
+    const ganttTasks = orders.map(t => ({
+      id: t.id,
+      name: t.name,
+      start: t.start,
+      end: t.end,
+      progress: t.progress
+    }));
+
+    if (ganttInstance) {
+      ganttInstance.refresh(ganttTasks);
+    } else {
+      ganttInstance = new Gantt('#gantt', ganttTasks, {
+        header_height: 50,
+        column_width: 30,
+        step: 24,
+        view_mode: 'Month',
+        bar_height: 20,
+        bar_corner_radius: 3,
+        on_click: task => {
+          selectOrder(task.id);
+        },
+        on_date_change: (task, start, end) => {
+          updateOrderDates(task.id, start, end);
+        },
+        on_progress_change: (task, progress) => {
+          updateOrderProgress(task.id, progress);
+        }
+      });
+    }
+  }
+
+  // Обновление дат заказа
+  function updateOrderDates(orderId, start, end) {
+    const orders = loadOrders();
+    const idx = orders.findIndex(o => o.id === orderId);
+    if (idx !== -1) {
+      orders[idx].start = start;
+      orders[idx].end = end;
+      saveOrders(orders);
+      renderOrdersList();
+      renderLoadInfo();
+    }
+  }
+
+  // Обновление прогресса заказа
+  function updateOrderProgress(orderId, progress) {
+    const orders = loadOrders();
+    const idx = orders.findIndex(o => o.id === orderId);
+    if (idx !== -1) {
+      orders[idx].progress = progress;
+      saveOrders(orders);
+      renderOrdersList();
+    }
+  }
+
+  // Отрисовка списка заказов с возможностью выбора и удаления
+  function renderOrdersList() {
+    const orders = getFilteredOrders();
+
+    ordersList.innerHTML = '';
+    if (orders.length === 0) {
+      ordersList.textContent = 'Нет заказов для данного оборудования.';
+      return;
+    }
+
+    orders.forEach(o => {
+      const div = document.createElement('div');
+      div.textContent = `${o.name} (${o.start} — ${o.end}) [Прогресс: ${o.progress}%]`;
+      div.dataset.id = o.id;
+
+      if (selectedOrderId === o.id) {
+        div.classList.add('selected');
+      }
+
+      // Кнопка удаления
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Удалить';
+      delBtn.style.marginLeft = '10px';
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Удалить заказ "${o.name}"?`)) {
+          deleteOrder(o.id);
+        }
+      };
+
+      div.appendChild(delBtn);
+
+      div.onclick = () => {
+        selectOrder(o.id);
+      };
+
+      ordersList.appendChild(div);
+    });
+  }
+
+  // Выбор заказа для редактирования
+  function selectOrder(id) {
+    selectedOrderId = id;
+    const orders = loadOrders();
+    const order = orders.find(o => o.id === id);
+    if (!order) return;
+
+    orderIdInput.value = order.id;
+    orderNameInput.value = order.name;
+    equipmentSelect.value = order.equipmentId;
+    startDateInput.value = order.start;
+    endDateInput.value = order.end;
+
+    saveBtn.textContent = 'Сохранить изменения';
+    cancelEditBtn.style.display = 'inline-block';
+
+    renderOrdersList();
+  }
+
+  // Отмена редактирования
+  cancelEditBtn.onclick = () => {
+    clearForm();
+  };
+
+  // Очистка формы
+  function clearForm() {
+    orderIdInput.value = '';
+    orderNameInput.value = '';
+    equipmentSelect.value = currentEquipmentId || '';
+    startDateInput.value = '';
+    endDateInput.value = '';
+    saveBtn.textContent = 'Добавить заказ';
+    cancelEditBtn.style.display = 'none';
+    selectedOrderId = null;
+    renderOrdersList();
+  }
+
+  // Удаление заказа
+  function deleteOrder(id) {
+    let orders = loadOrders();
+    orders = orders.filter(o => o.id !== id);
+    saveOrders(orders);
+    if (selectedOrderId === id) {
+      clearForm();
+    }
+    renderGantt();
+    renderOrdersList();
+    renderLoadInfo();
+  }
+
+  // Обработка формы добавления/редактирования заказа
+  orderForm.onsubmit = (e) => {
+    e.preventDefault();
+
+    const id = orderIdInput.value;
+    const name = orderNameInput.value.trim();
+    const equipmentId = equipmentSelect.value;
+    const start = startDateInput.value;
+    const end = endDateInput.value;
+
+    if (new Date(start) > new Date(end)) {
+      alert('Дата начала не может быть позже даты окончания!');
+      return;
+    }
+
+    let orders = loadOrders();
+
+    if (id) {
+      // Редактирование существующего заказа
+      const idx = orders.findIndex(o => o.id === id);
+      if (idx !== -1) {
+        orders[idx] = { id, name, equipmentId, start, end, progress: orders[idx].progress || 0 };
+      }
+    } else {
+      // Добавление нового заказа
+      const newId = generateOrderId(orders);
+      orders.push({ id: newId, name, equipmentId, start, end, progress: 0 });
+    }
+
+    saveOrders(orders);
+    clearForm();
+    renderGantt();
+    renderOrdersList();
+    renderLoadInfo();
+  };
+
+  // Обработка формы добавления нового оборудования
+  addEquipmentForm.onsubmit = (e) => {
+    e.preventDefault();
+    const name = newEquipmentNameInput.value.trim();
+    if (!name) {
+      alert('Введите название участка');
+      return;
+    }
+    let equipment = loadEquipment();
+    // Проверяем дубли
+    if (equipment.some(eq => eq.name.toLowerCase() === name.toLowerCase())) {
+      alert('Участок с таким названием уже существует');
+      return;
+    }
+    const newId = generateEquipmentId(equipment);
+    equipment.push({ id: newId, name });
+    saveEquipment(equipment);
+    newEquipmentNameInput.value = '';
+
+    // Если участков не было, выбираем новый
+    if (!currentEquipmentId) {
+      currentEquipmentId = newId;
+    }
+
+    initEquipmentSelect(equipment);
+    renderEquipmentTabs(equipment);
+    renderGantt();
+    renderOrdersList();
+    renderLoadInfo();
+  };
+
+  // Обработка поиска заказов
+  searchOrdersInput.oninput = () => {
+    renderOrdersList();
+  };
+
+  // Инициализация интерфейса
+  function init() {
+    const equipment = loadEquipment();
+    if (equipment.length) {
+      currentEquipmentId = equipment[0].id;
+    } else {
+      currentEquipmentId = null;
+    }
+    initEquipmentSelect(equipment);
+    renderEquipmentTabs(equipment);
+    renderGantt();
+    renderOrdersList();
+    renderLoadInfo();
+  }
+
+  init();
+</script>
+
+</body>
+</html>
