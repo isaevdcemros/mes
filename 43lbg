@@ -1,0 +1,2438 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MES Pro - Профессиональное планирование производства</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #2c3e50;
+      --primary-dark: #1a2530;
+      --secondary: #3498db;
+      --success: #27ae60;
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --info: #2980b9;
+      --light: #f8f9fa;
+      --dark: #212529;
+      --gray: #7f8c8d;
+      --border: #bdc3c7;
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      --hover-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #ecf0f1;
+      color: var(--dark);
+      line-height: 1.6;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1800px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      padding: 20px 24px;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--secondary), var(--success));
+    }
+
+    .header-content {
+      flex: 1;
+      position: relative;
+      z-index: 2;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    .api-status {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .api-status.online {
+      color: var(--success);
+    }
+
+    .api-status.offline {
+      color: var(--danger);
+    }
+
+    h1 {
+      font-weight: 700;
+      font-size: 28px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 i {
+      font-size: 32px;
+      color: var(--secondary);
+    }
+
+    .subtitle {
+      font-weight: 300;
+      opacity: 0.9;
+      font-size: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      padding: 24px;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--secondary);
+    }
+
+    .card:hover {
+      box-shadow: var(--hover-shadow);
+      transform: translateY(-3px);
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--primary);
+    }
+
+    .card-title i {
+      color: var(--secondary);
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(52, 152, 219, 0.1);
+      border-radius: 50%;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .col {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .col-2 {
+      flex: 2;
+      min-width: 600px;
+    }
+
+    .col-3 {
+      flex: 3;
+      min-width: 900px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--dark);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px;
+      transition: var(--transition);
+      background: var(--light);
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 15px 0;
+    }
+
+    .checkbox-group input {
+      width: auto;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: 500;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      background: var(--secondary);
+      color: white;
+    }
+
+    .btn:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .btn i {
+      font-size: 18px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--secondary);
+      color: var(--secondary);
+    }
+
+    .btn-outline:hover {
+      background: rgba(52, 152, 219, 0.1);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+
+    .btn-success {
+      background: var(--success);
+    }
+
+    .btn-success:hover {
+      background: #219653;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: var(--dark);
+    }
+
+    .btn-warning:hover {
+      background: #e67e22;
+      color: white;
+    }
+
+    .btn-info {
+      background: var(--info);
+    }
+
+    .btn-info:hover {
+      background: #1c6ea4;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    #gantt {
+      height: 500px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: white;
+    }
+
+    .equipment-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: var(--light);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tab-btn:hover {
+      background: #e9ecef;
+    }
+
+    .tab-btn.active {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .tab-btn .badge {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      padding: 2px 8px;
+      font-size: 12px;
+    }
+
+    .del-eq {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: var(--danger);
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .tab-btn:hover .del-eq {
+      opacity: 1;
+    }
+
+    .load-info {
+      background: rgba(52, 152, 219, 0.1);
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .load-info i {
+      font-size: 24px;
+      color: var(--secondary);
+    }
+
+    .load-content h3 {
+      font-size: 18px;
+      margin-bottom: 5px;
+      color: var(--primary);
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      background: var(--secondary);
+      border-radius: 4px;
+    }
+
+    #ordersList {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .order-item {
+      padding: 15px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .order-item:hover {
+      background: rgba(52, 152, 219, 0.05);
+    }
+
+    .order-item.selected {
+      background: rgba(52, 152, 219, 0.1);
+      border-left: 3px solid var(--secondary);
+    }
+
+    .order-info {
+      flex: 1;
+    }
+
+    .order-name {
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: var(--primary);
+    }
+
+    .order-dates {
+      font-size: 14px;
+      color: var(--gray);
+      display: flex;
+      gap: 15px;
+    }
+
+    .order-progress {
+      font-size: 14px;
+      font-weight: 500;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .order-progress.high {
+      color: var(--success);
+    }
+
+    .order-progress.medium {
+      color: var(--warning);
+    }
+
+    .order-progress.low {
+      color: var(--danger);
+    }
+
+    .order-cost {
+      font-size: 13px;
+      background: rgba(39, 174, 96, 0.1);
+      color: var(--success);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+
+    .order-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--light);
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--dark);
+    }
+
+    .action-btn:hover {
+      background: #e9ecef;
+      color: var(--danger);
+    }
+
+    .search-container {
+      position: relative;
+      margin-bottom: 15px;
+    }
+
+    .search-container i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray);
+    }
+
+    .search-container input {
+      padding-left: 40px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: var(--gray);
+    }
+
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.3;
+    }
+
+    .empty-state p {
+      margin-top: 10px;
+    }
+
+    .dependency-indicator {
+      display: inline-block;
+      background: rgba(52, 152, 219, 0.1);
+      color: var(--secondary);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .import-export-area {
+      width: 100%;
+      height: 150px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 14px;
+      resize: vertical;
+      margin: 15px 0;
+      background: var(--light);
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+      transform: translateX(120%);
+      transition: transform 0.3s ease;
+      max-width: 400px;
+    }
+
+    .notification.show {
+      transform: translateX(0);
+    }
+
+    .notification.success {
+      border-left: 4px solid var(--success);
+    }
+
+    .notification.error {
+      border-left: 4px solid var(--danger);
+    }
+
+    .notification.warning {
+      border-left: 4px solid var(--warning);
+    }
+
+    .notification i {
+      font-size: 20px;
+    }
+
+    .spec-preview {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #f8f9fa;
+    }
+
+    .spec-item {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .spec-item-header {
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+      color: var(--primary);
+    }
+
+    .spec-item-children {
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+
+    .spec-item-child {
+      padding: 5px;
+      border-left: 2px solid var(--secondary);
+      margin-bottom: 5px;
+      background: rgba(52, 152, 219, 0.03);
+    }
+
+    .gost-section {
+      background: #f8f9ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #dbe4ff;
+    }
+
+    .gost-section h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+
+    .api-section {
+      background: #f0f7ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #cce5ff;
+    }
+
+    .dashboard-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--hover-shadow);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 10px 0;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      color: var(--gray);
+      font-size: 14px;
+    }
+
+    .stat-card i {
+      font-size: 32px;
+      color: var(--secondary);
+      margin-bottom: 10px;
+    }
+
+    .kpi-indicator {
+      height: 6px;
+      background: #ecf0f1;
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .kpi-progress {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    .kpi-good {
+      background: var(--success);
+    }
+
+    .kpi-medium {
+      background: var(--warning);
+    }
+
+    .kpi-bad {
+      background: var(--danger);
+    }
+
+    .resource-management {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .resource-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .resource-card h4 {
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .resource-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .resource-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .resource-item:last-child {
+      border-bottom: none;
+    }
+
+    .time-input {
+      width: 80px;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .cost-input {
+      width: 120px;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      text-align: right;
+    }
+
+    .analytics-section {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .analytics-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .chart-container {
+      height: 300px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .chart-placeholder {
+      text-align: center;
+      color: var(--gray);
+    }
+
+    .chart-placeholder i {
+      font-size: 48px;
+      margin-bottom: 10px;
+      opacity: 0.3;
+    }
+
+    .priority-select {
+      width: 150px;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .optimization-card {
+      background: #fff8e1;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #ffe082;
+    }
+
+    .optimization-card h4 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+
+    .deadline-input {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .deadline-input input {
+      flex: 1;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-stats {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+    }
+
+    @media (max-width: 992px) {
+      .flex-row {
+        flex-direction: column;
+      }
+      
+      .col, .col-2, .col-3 {
+        min-width: 100%;
+      }
+      
+      #gantt {
+        height: 400px;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+
+      .header-stats {
+        flex-wrap: wrap;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .btn-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+      }
+
+      .resource-management {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 576px) {
+      body {
+        padding: 15px;
+      }
+      
+      .card {
+        padding: 20px 15px;
+      }
+
+      .stat-value {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <h1><i class="fas fa-industry"></i> MES Pro - Производственное планирование</h1>
+        <p class="subtitle">Комплексное решение для управления производством и ресурсами</p>
+        
+        <div class="header-stats">
+          <div class="stat-item">
+            <i class="fas fa-tasks"></i> Заказы: <span class="stat-value" id="totalOrders">0</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-cogs"></i> Оборудование: <span class="stat-value" id="totalEquipment">0</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-chart-line"></i> Загрузка: <span class="stat-value" id="avgLoad">0%</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-money-bill-wave"></i> Эффективность: <span class="stat-value" id="efficiency">0%</span>
+          </div>
+        </div>
+      </div>
+      <div class="api-status online">
+        <i class="fas fa-plug"></i>
+        <span>Система: активна</span>
+      </div>
+    </header>
+    
+    <div class="flex-row">
+      <div class="col">
+        <div class="card">
+          <h2 class="card-title"><i class="fas fa-cogs"></i> Управление участками</h2>
+          <form id="addEquipmentForm">
+            <div class="form-group">
+              <label for="newEquipmentName">Название нового участка</label>
+              <input type="text" id="newEquipmentName" class="form-control" placeholder="Введите название участка" required />
+            </div>
+            
+            <div class="flex-row">
+              <div class="col">
+                <div class="form-group">
+                  <label for="hourlyRate">Стоимость часа работы ($)</label>
+                  <input type="number" id="hourlyRate" class="form-control" min="0" step="0.1" value="50" required />
+                </div>
+              </div>
+              <div class="col">
+                <div class="form-group">
+                  <label for="setupTime">Время переналадки (ч)</label>
+                  <input type="number" id="setupTime" class="form-control" min="0" value="2" required />
+                </div>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn"><i class="fas fa-plus"></i> Добавить участок</button>
+          </form>
+          
+          <div class="load-info" id="loadInfo">
+            <i class="fas fa-chart-bar"></i>
+            <div class="load-content">
+              <h3>Загрузка оборудования</h3>
+              <p>Выберите участок для просмотра загрузки</p>
+              <div class="progress-bar">
+                <div class="progress"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="equipment-tabs" id="equipmentTabs"></div>
+        </div>
+        
+        <div class="card">
+          <h2 class="card-title"><i class="fas fa-tasks"></i> Список заказов</h2>
+          <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchOrders" class="form-control" placeholder="Поиск заказов..." />
+          </div>
+          <div id="ordersList">
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>Нет заказов</h3>
+              <p>Добавьте заказы для отображения в списке</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="resource-management">
+          <div class="resource-card">
+            <h4><i class="fas fa-users"></i> Персонал</h4>
+            <div class="resource-list" id="personnelList">
+              <div class="resource-item">
+                <span>Иванов А.П. (Оператор)</span>
+                <span>2 смена</span>
+              </div>
+              <div class="resource-item">
+                <span>Петров С.И. (Технолог)</span>
+                <span>1 смена</span>
+              </div>
+              <div class="resource-item">
+                <span>Сидорова М.К. (Контроль качества)</span>
+                <span>1 смена</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="resource-card">
+            <h4><i class="fas fa-boxes"></i> Материалы</h4>
+            <div class="resource-list" id="materialsList">
+              <div class="resource-item">
+                <span>Сталь листовая</span>
+                <span>120 кг</span>
+              </div>
+              <div class="resource-item">
+                <span>Электронные компоненты</span>
+                <span>85 ед.</span>
+              </div>
+              <div class="resource-item">
+                <span>Крепежные элементы</span>
+                <span>350 ед.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-3">
+        <div class="card">
+          <h2 class="card-title"><i class="fas fa-chart-gantt"></i> Диаграмма Ганта</h2>
+          <div class="flex-row">
+            <div class="col">
+              <div class="form-group">
+                <label for="timeScale">Масштаб времени</label>
+                <select id="timeScale" class="form-control">
+                  <option value="day">День</option>
+                  <option value="week" selected>Неделя</option>
+                  <option value="month">Месяц</option>
+                  <option value="quarter">Квартал</option>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="viewMode">Режим отображения</label>
+                <select id="viewMode" class="form-control">
+                  <option value="all">Все участки</option>
+                  <option value="current" selected>Текущий участок</option>
+                  <option value="critical">Критический путь</option>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="priorityFilter">Приоритет</label>
+                <select id="priorityFilter" class="form-control">
+                  <option value="all">Все</option>
+                  <option value="high">Высокий</option>
+                  <option value="medium">Средний</option>
+                  <option value="low">Низкий</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div id="gantt">
+            <div class="empty-state">
+              <i class="fas fa-chart-line"></i>
+              <h3>Нет данных для отображения</h3>
+              <p>Добавьте оборудование и заказы для построения диаграммы</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="optimization-card">
+          <h4><i class="fas fa-bolt"></i> Оптимизация производства</h4>
+          <div class="flex-row">
+            <div class="col">
+              <div class="form-group">
+                <label for="optimizationType">Тип оптимизации</label>
+                <select id="optimizationType" class="form-control">
+                  <option value="minCost">Минимизация стоимости</option>
+                  <option value="minTime">Минимизация времени</option>
+                  <option value="balanced">Сбалансированный подход</option>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="deadline">Желаемый срок выполнения</label>
+                <div class="deadline-input">
+                  <input type="date" id="deadline" class="form-control" />
+                  <button class="btn btn-success" id="optimizeBtn">
+                    <i class="fas fa-magic"></i> Оптимизировать
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="optimizationParams">Параметры оптимизации</label>
+            <div class="flex-row">
+              <div class="col">
+                <div class="checkbox-group">
+                  <input type="checkbox" id="includeSetup" checked />
+                  <label for="includeSetup">Учитывать время переналадки</label>
+                </div>
+              </div>
+              <div class="col">
+                <div class="checkbox-group">
+                  <input type="checkbox" id="parallelWork" checked />
+                  <label for="parallelWork">Разрешить параллельную работу</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="gost-section">
+          <h3><i class="fas fa-file-contract"></i> Импорт конструкторской документации (ГОСТ 2.105-95)</h3>
+          <p>Загрузите спецификацию для автоматического создания плана работ</p>
+          
+          <div class="flex-row">
+            <div class="col">
+              <div class="form-group">
+                <label for="gostFile">Файл спецификации</label>
+                <input type="file" id="gostFile" class="form-control" accept=".json,.xml">
+              </div>
+              <button class="btn btn-warning" id="loadGostBtn">
+                <i class="fas fa-upload"></i> Загрузить спецификацию
+              </button>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="productType">Тип изделия</label>
+                <select id="productType" class="form-control">
+                  <option value="mechanical">Механическая обработка</option>
+                  <option value="electronic">Электронная сборка</option>
+                  <option value="assembly">Сборочный узел</option>
+                </select>
+              </div>
+              <button class="btn btn-success" id="generatePlanBtn">
+                <i class="fas fa-cogs"></i> Создать план
+              </button>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="batchSize">Размер партии</label>
+                <input type="number" id="batchSize" class="form-control" min="1" value="1" />
+              </div>
+              <div class="checkbox-group">
+                <input type="checkbox" id="includeTesting" checked />
+                <label for="includeTesting">Включать тестирование</label>
+              </div>
+            </div>
+          </div>
+          
+          <div class="spec-preview" id="specPreview" style="display: none;">
+            <h4>Предпросмотр спецификации:</h4>
+            <div id="specContent"></div>
+          </div>
+        </div>
+        
+        <div class="flex-row">
+          <div class="col-2">
+            <div class="card">
+              <h2 class="card-title"><i class="fas fa-edit"></i> Редактор заказов</h2>
+              <form id="orderForm">
+                <input type="hidden" id="orderId" />
+                <div class="form-group">
+                  <label for="orderName">Название заказа</label>
+                  <input type="text" id="orderName" class="form-control" placeholder="Введите название заказа" required />
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="equipmentSelect">Оборудование (участок)</label>
+                      <select id="equipmentSelect" class="form-control" required></select>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="orderPriority">Приоритет</label>
+                      <select id="orderPriority" class="form-control">
+                        <option value="high">Высокий</option>
+                        <option value="medium" selected>Средний</option>
+                        <option value="low">Низкий</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="startDate">Дата начала</label>
+                      <input type="date" id="startDate" class="form-control" required />
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="endDate">Дата окончания</label>
+                      <input type="date" id="endDate" class="form-control" required />
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="materialCost">Стоимость материалов ($)</label>
+                      <input type="number" id="materialCost" class="form-control" min="0" step="0.01" value="0" />
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="laborCost">Трудозатраты (ч)</label>
+                      <input type="number" id="laborCost" class="form-control" min="0" step="0.5" value="0" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="dependencySelect">Зависимость</label>
+                  <select id="dependencySelect" class="form-control">
+                    <option value="">Нет зависимости</option>
+                  </select>
+                  <span class="dependency-indicator">Выберите заказ, который должен завершиться до начала этого</span>
+                </div>
+                
+                <div class="checkbox-group">
+                  <input type="checkbox" id="autoAssign" />
+                  <label for="autoAssign">Авто-распределение по участку с минимальной загрузкой</label>
+                </div>
+                
+                <div class="btn-group">
+                  <button type="submit" id="saveBtn" class="btn"><i class="fas fa-save"></i> Добавить заказ</button>
+                  <button type="button" id="cancelEditBtn" class="btn btn-outline" style="display:none;"><i class="fas fa-times"></i> Отмена</button>
+                  <button type="button" id="calculateCostBtn" class="btn btn-info"><i class="fas fa-calculator"></i> Рассчитать стоимость</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <div class="col">
+            <div class="card">
+              <h2 class="card-title"><i class="fas fa-file-export"></i> Экспорт / Импорт</h2>
+              <div class="btn-group">
+                <button id="exportBtn" class="btn btn-success"><i class="fas fa-download"></i> Экспортировать данные</button>
+                <button id="importBtn" class="btn"><i class="fas fa-upload"></i> Импортировать данные</button>
+                <button id="copyBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Копировать</button>
+              </div>
+              <textarea id="importExportArea" class="import-export-area" placeholder="Вставьте сюда JSON для импорта или получите экспортированные данные"></textarea>
+              
+              <div class="api-section">
+                <h4><i class="fas fa-code"></i> API интеграция</h4>
+                <div class="form-group">
+                  <label for="apiEndpoint">API Endpoint</label>
+                  <input type="text" id="apiEndpoint" class="form-control" value="https://api.mes-system.com/v1" readonly>
+                </div>
+                <button class="btn" id="syncApiBtn">
+                  <i class="fas fa-sync-alt"></i> Синхронизировать с API
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="analytics-section">
+      <div class="analytics-header">
+        <h3><i class="fas fa-chart-pie"></i> Аналитика производства</h3>
+        <select id="analyticsPeriod" class="priority-select">
+          <option value="week">Неделя</option>
+          <option value="month" selected>Месяц</option>
+          <option value="quarter">Квартал</option>
+          <option value="year">Год</option>
+        </select>
+      </div>
+      
+      <div class="dashboard-stats">
+        <div class="stat-card">
+          <i class="fas fa-money-bill-wave"></i>
+          <div class="stat-value">$24,580</div>
+          <div class="stat-label">Общая стоимость производства</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-good" style="width: 85%"></div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <i class="fas fa-clock"></i>
+          <div class="stat-value">92%</div>
+          <div class="stat-label">Использование оборудования</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-good" style="width: 92%"></div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <i class="fas fa-truck-loading"></i>
+          <div class="stat-value">87%</div>
+          <div class="stat-label">Выполнение плана</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-medium" style="width: 87%"></div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <i class="fas fa-user-clock"></i>
+          <div class="stat-value">78%</div>
+          <div class="stat-label">Эффективность труда</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-medium" style="width: 78%"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-placeholder">
+          <i class="fas fa-chart-bar"></i>
+          <h4>Графики загрузки и эффективности</h4>
+          <p>Данные будут отображены после начала работы</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="notification" id="notification">
+    <i class="fas fa-check-circle"></i>
+    <div class="notification-content"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.js"></script>
+  <script>
+    // Мок API для демонстрации
+    class MESApi {
+      constructor() {
+        this.endpoint = "https://api.mes-system.com/v1";
+        this.isOnline = true;
+      }
+      
+      // Метод для получения данных оборудования
+      async getEquipment() {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve([
+              { 
+                id: 'eq1', 
+                name: 'Участок 1 - Станок A', 
+                hourlyRate: 85, 
+                setupTime: 2,
+                operator: 'Иванов А.П.',
+                status: 'active'
+              },
+              { 
+                id: 'eq2', 
+                name: 'Участок 2 - Станок B', 
+                hourlyRate: 75, 
+                setupTime: 1.5,
+                operator: 'Петров С.И.',
+                status: 'active'
+              },
+              { 
+                id: 'eq3', 
+                name: 'Участок 3 - Станок C', 
+                hourlyRate: 95, 
+                setupTime: 3,
+                operator: 'Сидорова М.К.',
+                status: 'maintenance'
+              }
+            ]);
+          }, 500);
+        });
+      }
+
+      // Метод для получения заказов
+      async getOrders() {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve([
+              { 
+                id: 'Task 1', 
+                name: 'Заказ 1 - Корпус изделия', 
+                start: '2024-01-01', 
+                end: '2024-01-10', 
+                progress: 20, 
+                equipmentId: 'eq1', 
+                dependency: '',
+                priority: 'high',
+                materialCost: 1200,
+                laborCost: 24
+              },
+              { 
+                id: 'Task 2', 
+                name: 'Заказ 2 - Электронный блок', 
+                start: '2024-01-05', 
+                end: '2024-01-20', 
+                progress: 50, 
+                equipmentId: 'eq2', 
+                dependency: '',
+                priority: 'medium',
+                materialCost: 850,
+                laborCost: 18
+              },
+              { 
+                id: 'Task 3', 
+                name: 'Заказ 3 - Сборка узла', 
+                start: '2024-01-15', 
+                end: '2024-01-25', 
+                progress: 10, 
+                equipmentId: 'eq1', 
+                dependency: 'Task 1',
+                priority: 'medium',
+                materialCost: 320,
+                laborCost: 12
+              }
+            ]);
+          }, 500);
+        });
+      }
+
+      // Метод для обработки спецификации ГОСТ
+      async processGostSpec(file, productType) {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            // В реальной системе здесь была бы обработка файла
+            // Возвращаем моковые данные для демонстрации
+            resolve({
+              product: "Изделие А-123",
+              components: [
+                {
+                  name: "Корпус",
+                  material: "Сталь нержавеющая",
+                  quantity: 1,
+                  operations: [
+                    { name: "Фрезеровка", duration: 3, equipmentType: "mechanical", labor: 8 },
+                    { name: "Сверление", duration: 1, equipmentType: "mechanical", labor: 4 }
+                  ]
+                },
+                {
+                  name: "Электронный модуль",
+                  material: "Плата печатная",
+                  quantity: 1,
+                  operations: [
+                    { name: "Пайка компонентов", duration: 2, equipmentType: "electronic", labor: 6 },
+                    { name: "Тестирование", duration: 1, equipmentType: "electronic", labor: 2 }
+                  ]
+                },
+                {
+                  name: "Сборка",
+                  material: "Комплектующие",
+                  quantity: 1,
+                  operations: [
+                    { name: "Комплектация", duration: 1, equipmentType: "assembly", labor: 3 },
+                    { name: "Финальная сборка", duration: 2, equipmentType: "assembly", labor: 5 }
+                  ]
+                }
+              ]
+            });
+          }, 1500);
+        });
+      }
+
+      // Метод для сохранения данных
+      async saveData(dataType, data) {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ status: 'success', message: 'Данные успешно сохранены' });
+          }, 300);
+        });
+      }
+      
+      // Метод для оптимизации плана
+      async optimizePlan(params) {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ 
+              status: 'success', 
+              message: 'План успешно оптимизирован',
+              savings: 1250,
+              timeReduction: 18
+            });
+          }, 2000);
+        });
+      }
+    }
+
+    // Элементы DOM
+    const equipmentTabs = document.getElementById('equipmentTabs');
+    const loadInfo = document.getElementById('loadInfo');
+    const ordersList = document.getElementById('ordersList');
+    const equipmentSelect = document.getElementById('equipmentSelect');
+    const orderForm = document.getElementById('orderForm');
+    const orderIdInput = document.getElementById('orderId');
+    const orderNameInput = document.getElementById('orderName');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const saveBtn = document.getElementById('saveBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const addEquipmentForm = document.getElementById('addEquipmentForm');
+    const newEquipmentNameInput = document.getElementById('newEquipmentName');
+    const searchOrdersInput = document.getElementById('searchOrders');
+    const autoAssignCheckbox = document.getElementById('autoAssign');
+    const dependencySelect = document.getElementById('dependencySelect');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const importExportArea = document.getElementById('importExportArea');
+    const notification = document.getElementById('notification');
+    const loadGostBtn = document.getElementById('loadGostBtn');
+    const generatePlanBtn = document.getElementById('generatePlanBtn');
+    const specPreview = document.getElementById('specPreview');
+    const specContent = document.getElementById('specContent');
+    const syncApiBtn = document.getElementById('syncApiBtn');
+    const apiStatus = document.querySelector('.api-status');
+    const calculateCostBtn = document.getElementById('calculateCostBtn');
+    const optimizeBtn = document.getElementById('optimizeBtn');
+    const totalOrders = document.getElementById('totalOrders');
+    const totalEquipment = document.getElementById('totalEquipment');
+    const avgLoad = document.getElementById('avgLoad');
+    const efficiency = document.getElementById('efficiency');
+    const orderPriority = document.getElementById('orderPriority');
+    const materialCost = document.getElementById('materialCost');
+    const laborCost = document.getElementById('laborCost');
+
+    // Инициализация API
+    const mesApi = new MESApi();
+    let currentEquipmentId = null;
+    let ganttInstance = null;
+    let selectedOrderId = null;
+    let gostData = null;
+
+    // Показ уведомлений
+    function showNotification(message, type = 'success') {
+      const notificationContent = notification.querySelector('.notification-content');
+      notificationContent.textContent = message;
+      
+      notification.className = 'notification';
+      notification.classList.add(type);
+      notification.classList.add('show');
+      
+      if (type === 'success') {
+        notification.querySelector('i').className = 'fas fa-check-circle';
+      } else if (type === 'error') {
+        notification.querySelector('i').className = 'fas fa-exclamation-circle';
+      } else {
+        notification.querySelector('i').className = 'fas fa-info-circle';
+      }
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    // Загрузка оборудования через API
+    async function loadEquipment() {
+      try {
+        const equipment = await mesApi.getEquipment();
+        return equipment;
+      } catch (error) {
+        showNotification('Ошибка загрузки оборудования: ' + error.message, 'error');
+        return [];
+      }
+    }
+
+    // Загрузка заказов через API
+    async function loadOrders() {
+      try {
+        const orders = await mesApi.getOrders();
+        return orders;
+      } catch (error) {
+        showNotification('Ошибка загрузки заказов: ' + error.message, 'error');
+        return [];
+      }
+    }
+
+    // Инициализация селекта оборудования в форме заказа
+    async function initEquipmentSelect() {
+      const equipment = await loadEquipment();
+      equipmentSelect.innerHTML = '';
+      equipment.forEach(eq => {
+        const option = document.createElement('option');
+        option.value = eq.id;
+        option.textContent = eq.name;
+        equipmentSelect.appendChild(option);
+      });
+    }
+
+    // Рендер вкладок оборудования
+    async function renderEquipmentTabs() {
+      const equipment = await loadEquipment();
+      equipmentTabs.innerHTML = '';
+      
+      if (equipment.length === 0) {
+        equipmentTabs.innerHTML = '<p class="empty-state">Добавьте участки оборудования</p>';
+        return;
+      }
+      
+      equipment.forEach(eq => {
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn';
+        if (eq.id === currentEquipmentId) {
+          btn.classList.add('active');
+        }
+        
+        const span = document.createElement('span');
+        span.textContent = eq.name;
+        btn.appendChild(span);
+        
+        if (eq.status === 'maintenance') {
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.innerHTML = '<i class="fas fa-tools"></i> Ремонт';
+          btn.appendChild(badge);
+          btn.style.opacity = '0.7';
+        }
+        
+        btn.onclick = async () => {
+          currentEquipmentId = eq.id;
+          await renderEquipmentTabs();
+          await renderGantt();
+          await renderOrdersList();
+          await renderLoadInfo();
+          clearForm();
+        };
+
+        equipmentTabs.appendChild(btn);
+      });
+    }
+
+    // Фильтрация заказов
+    async function getFilteredOrders() {
+      if (!currentEquipmentId) return [];
+      
+      const orders = await loadOrders();
+      const searchText = searchOrdersInput.value.trim().toLowerCase();
+      const priorityFilter = document.getElementById('priorityFilter').value;
+      
+      return orders.filter(o => 
+        o.equipmentId === currentEquipmentId && 
+        (o.name.toLowerCase().includes(searchText) &&
+        (priorityFilter === 'all' || o.priority === priorityFilter)
+      );
+    }
+
+    // Подсчет загрузки оборудования
+    async function calculateLoad(orders) {
+      let totalDays = 0;
+      orders.forEach(t => {
+        const start = new Date(t.start);
+        const end = new Date(t.end);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        totalDays += diffDays;
+      });
+      return totalDays;
+    }
+
+    // Отображение загрузки оборудования
+    async function renderLoadInfo() {
+      if (!currentEquipmentId) {
+        loadInfo.innerHTML = '<i class="fas fa-chart-bar"></i><div class="load-content"><h3>Загрузка оборудования</h3><p>Выберите участок для просмотра загрузки</p></div>';
+        return;
+      }
+      
+      const orders = await getFilteredOrders();
+      const days = await calculateLoad(orders);
+      const equipment = (await loadEquipment()).find(eq => eq.id === currentEquipmentId);
+      
+      // Расчет прогресса (максимум 30 дней для 100%)
+      const progressPercent = Math.min(100, Math.round((days / 30) * 100));
+      
+      loadInfo.innerHTML = `
+        <i class="fas fa-chart-bar"></i>
+        <div class="load-content">
+          <h3>Загрузка оборудования "${equipment ? equipment.name : ''}"</h3>
+          <p>${days} дней занятости (${progressPercent}% от максимальной загрузки)</p>
+          <div class="progress-bar">
+            <div class="progress" style="width: ${progressPercent}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Рендер диаграммы Ганта
+    async function renderGantt() {
+      const ganttContainer = document.querySelector('#gantt');
+      
+      if (!currentEquipmentId) {
+        ganttContainer.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><h3>Нет данных для отображения</h3><p>Выберите участок оборудования</p></div>';
+        if (ganttInstance) ganttInstance = null;
+        return;
+      }
+      
+      const orders = await getFilteredOrders();
+      
+      if (orders.length === 0) {
+        ganttContainer.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><h3>Нет данных для отображения</h3><p>Добавьте заказы для этого участка</p></div>';
+        if (ganttInstance) ganttInstance = null;
+        return;
+      }
+      
+      // Преобразуем задачи для frappe-gantt
+      const ganttTasks = orders.map(t => ({
+        id: t.id,
+        name: t.name,
+        start: t.start,
+        end: t.end,
+        progress: t.progress,
+        dependencies: t.dependency || ''
+      }));
+      
+      // Если диаграмма уже создана - обновляем данные
+      if (ganttInstance) {
+        ganttInstance.refresh(ganttTasks);
+      } else {
+        ganttContainer.innerHTML = '';
+        ganttInstance = new Gantt('#gantt', ganttTasks, {
+          header_height: 50,
+          column_width: 30,
+          step: 24,
+          view_mode: 'Month',
+          bar_height: 20,
+          bar_corner_radius: 3,
+          on_click: task => {
+            selectOrder(task.id);
+          },
+          on_date_change: (task, start, end) => {
+            updateOrderDates(task.id, start, end);
+          },
+          on_progress_change: (task, progress) => {
+            updateOrderProgress(task.id, progress);
+          }
+        });
+      }
+    }
+
+    // Обновление дат заказа
+    async function updateOrderDates(orderId, start, end) {
+      const orders = await loadOrders();
+      const idx = orders.findIndex(o => o.id === orderId);
+      if (idx !== -1) {
+        orders[idx].start = start;
+        orders[idx].end = end;
+        
+        // В реальном приложении здесь будет вызов API для сохранения
+        await mesApi.saveData('orders', orders);
+        
+        await renderOrdersList();
+        await renderLoadInfo();
+        showNotification('Даты заказа обновлены');
+      }
+    }
+
+    // Обновление прогресса заказа
+    async function updateOrderProgress(orderId, progress) {
+      const orders = await loadOrders();
+      const idx = orders.findIndex(o => o.id === orderId);
+      if (idx !== -1) {
+        orders[idx].progress = progress;
+        
+        // В реальном приложении здесь будет вызов API для сохранения
+        await mesApi.saveData('orders', orders);
+        
+        await renderOrdersList();
+        showNotification('Прогресс заказа обновлен');
+      }
+    }
+
+    // Отрисовка списка заказов
+    async function renderOrdersList() {
+      const orders = await getFilteredOrders();
+      const equipment = await loadEquipment();
+
+      ordersList.innerHTML = '';
+      if (orders.length === 0) {
+        ordersList.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>Нет заказов</h3><p>Добавьте заказы для этого участка</p></div>';
+        return;
+      }
+
+      orders.forEach(o => {
+        const equipmentItem = equipment.find(eq => eq.id === o.equipmentId);
+        const hourlyRate = equipmentItem ? equipmentItem.hourlyRate : 0;
+        const laborCost = o.laborCost || 0;
+        const totalCost = (o.materialCost || 0) + (laborCost * hourlyRate);
+        
+        const orderItem = document.createElement('div');
+        orderItem.className = 'order-item';
+        if (selectedOrderId === o.id) {
+          orderItem.classList.add('selected');
+        }
+        orderItem.dataset.id = o.id;
+
+        // Определение класса прогресса
+        let progressClass = 'low';
+        if (o.progress > 40) progressClass = 'medium';
+        if (o.progress > 70) progressClass = 'high';
+
+        orderItem.innerHTML = `
+          <div class="order-info">
+            <div class="order-name">${o.name} <span class="dependency-indicator">${o.priority === 'high' ? 'Высокий приоритет' : o.priority === 'low' ? 'Низкий приоритет' : 'Средний приоритет'}</span></div>
+            <div class="order-dates">
+              <span>${o.start}</span>
+              <span>${o.end}</span>
+            </div>
+            <div class="order-cost">Стоимость: $${totalCost.toFixed(2)} (Материалы: $${o.materialCost || 0}, Труд: $${(laborCost * hourlyRate).toFixed(2)})</div>
+            ${o.dependency ? `<div class="dependency-indicator">Зависит от: ${o.dependency}</div>` : ''}
+          </div>
+          <div class="order-progress ${progressClass}">${o.progress}%</div>
+          <div class="order-actions">
+            <button class="action-btn delete-order" title="Удалить"><i class="fas fa-trash-alt"></i></button>
+          </div>
+        `;
+
+        // Обработчик выбора заказа
+        orderItem.onclick = (e) => {
+          if (!e.target.closest('.action-btn')) {
+            selectOrder(o.id);
+          }
+        };
+
+        // Обработчик удаления
+        const deleteBtn = orderItem.querySelector('.delete-order');
+        deleteBtn.onclick = async (e) => {
+          e.stopPropagation();
+          if (confirm(`Удалить заказ "${o.name}"?`)) {
+            await deleteOrder(o.id);
+          }
+        };
+
+        ordersList.appendChild(orderItem);
+      });
+    }
+
+    // Обновление списка зависимостей
+    async function updateDependencyOptions() {
+      const orders = await loadOrders();
+      dependencySelect.innerHTML = '<option value="">Нет зависимости</option>';
+      orders.forEach(o => {
+        if (selectedOrderId && o.id === selectedOrderId) return;
+        const option = document.createElement('option');
+        option.value = o.id;
+        option.textContent = o.name;
+        dependencySelect.appendChild(option);
+      });
+    }
+
+    // Выбор заказа для редактирования
+    async function selectOrder(id) {
+      selectedOrderId = id;
+      const orders = await loadOrders();
+      const order = orders.find(o => o.id === id);
+      if (!order) return;
+
+      orderIdInput.value = order.id;
+      orderNameInput.value = order.name;
+      equipmentSelect.value = order.equipmentId;
+      startDateInput.value = order.start;
+      endDateInput.value = order.end;
+      orderPriority.value = order.priority || 'medium';
+      materialCost.value = order.materialCost || 0;
+      laborCost.value = order.laborCost || 0;
+      dependencySelect.value = order.dependency || '';
+
+      saveBtn.innerHTML = '<i class="fas fa-save"></i> Сохранить изменения';
+      cancelEditBtn.style.display = 'inline-block';
+
+      await updateDependencyOptions();
+      await renderOrdersList();
+    }
+
+    // Отмена редактирования
+    cancelEditBtn.onclick = () => {
+      clearForm();
+    };
+
+    // Очистка формы
+    async function clearForm() {
+      orderIdInput.value = '';
+      orderNameInput.value = '';
+      equipmentSelect.value = currentEquipmentId || '';
+      
+      // Сброс дат к текущей дате
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0];
+      startDateInput.value = formattedDate;
+      endDateInput.value = '';
+      
+      orderPriority.value = 'medium';
+      materialCost.value = 0;
+      laborCost.value = 0;
+      autoAssignCheckbox.checked = false;
+      dependencySelect.value = '';
+      saveBtn.innerHTML = '<i class="fas fa-plus"></i> Добавить заказ';
+      cancelEditBtn.style.display = 'none';
+      selectedOrderId = null;
+      await updateDependencyOptions();
+      await renderOrdersList();
+    }
+
+    // Удаление заказа
+    async function deleteOrder(id) {
+      let orders = await loadOrders();
+
+      // Проверяем, нет ли зависимых заказов
+      const dependentOrders = orders.filter(o => o.dependency === id);
+      if (dependentOrders.length) {
+        showNotification('Нельзя удалить заказ, от которого зависят другие заказы. Сначала удалите или измените зависимости.', 'error');
+        return;
+      }
+
+      orders = orders.filter(o => o.id !== id);
+      
+      // В реальном приложении здесь будет вызов API для сохранения
+      await mesApi.saveData('orders', orders);
+      
+      if (selectedOrderId === id) {
+        await clearForm();
+      }
+      await renderGantt();
+      await renderOrdersList();
+      await renderLoadInfo();
+      showNotification('Заказ успешно удален');
+    }
+
+    // Автоматическое распределение по участку
+    async function autoAssignEquipment(start, end) {
+      const orders = await loadOrders();
+      const equipment = await loadEquipment();
+      
+      // Подсчитаем загрузку каждого участка
+      const loadMap = {};
+      equipment.forEach(eq => loadMap[eq.id] = 0);
+
+      orders.forEach(o => {
+        const s = new Date(o.start);
+        const e = new Date(o.end);
+        const diffDays = Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + 1;
+        if (loadMap[o.equipmentId] !== undefined) {
+          loadMap[o.equipmentId] += diffDays;
+        }
+      });
+
+      // Найдем участок с минимальной загрузкой
+      let minLoad = Infinity;
+      let selectedEq = null;
+      for (const eqId in loadMap) {
+        if (loadMap[eqId] < minLoad) {
+          minLoad = loadMap[eqId];
+          selectedEq = eqId;
+        }
+      }
+      return selectedEq;
+    }
+
+    // Обработка формы заказа
+    orderForm.onsubmit = async (e) => {
+      e.preventDefault();
+
+      const id = orderIdInput.value;
+      const name = orderNameInput.value.trim();
+      let equipmentId = equipmentSelect.value;
+      const start = startDateInput.value;
+      const end = endDateInput.value;
+      const dependency = dependencySelect.value || '';
+      const priority = orderPriority.value;
+      const materialCostVal = parseFloat(materialCost.value) || 0;
+      const laborCostVal = parseFloat(laborCost.value) || 0;
+
+      if (new Date(start) > new Date(end)) {
+        showNotification('Дата начала не может быть позже даты окончания!', 'error');
+        return;
+      }
+
+      let orders = await loadOrders();
+      const equipment = await loadEquipment();
+
+      if (autoAssignCheckbox.checked) {
+        equipmentId = await autoAssignEquipment(start, end);
+        if (!equipmentId) {
+          showNotification('Нет доступных участков для авто-распределения', 'error');
+          return;
+        }
+      }
+
+      if (id) {
+        // Редактирование существующего заказа
+        const idx = orders.findIndex(o => o.id === id);
+        if (idx !== -1) {
+          orders[idx] = { 
+            ...orders[idx],
+            name, 
+            equipmentId, 
+            start, 
+            end, 
+            dependency,
+            priority,
+            materialCost: materialCostVal,
+            laborCost: laborCostVal
+          };
+        }
+      } else {
+        // Добавление нового заказа
+        const newId = 'Task ' + (orders.length + 1);
+        orders.push({ 
+          id: newId, 
+          name, 
+          equipmentId, 
+          start, 
+          end, 
+          progress: 0, 
+          dependency,
+          priority,
+          materialCost: materialCostVal,
+          laborCost: laborCostVal
+        });
+      }
+
+      // В реальном приложении здесь будет вызов API для сохранения
+      await mesApi.saveData('orders', orders);
+      
+      await clearForm();
+      currentEquipmentId = equipmentId;
+      await renderEquipmentTabs();
+      await renderGantt();
+      await renderOrdersList();
+      await renderLoadInfo();
+      showNotification(id ? 'Заказ успешно обновлен' : 'Заказ успешно добавлен');
+    };
+
+    // Добавление нового оборудования
+    addEquipmentForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const name = newEquipmentNameInput.value.trim();
+      const hourlyRate = parseFloat(document.getElementById('hourlyRate').value) || 0;
+      const setupTime = parseFloat(document.getElementById('setupTime').value) || 0;
+      
+      if (!name) {
+        showNotification('Введите название участка', 'error');
+        return;
+      }
+      
+      let equipment = await loadEquipment();
+      
+      // Проверяем дубли
+      if (equipment.some(eq => eq.name.toLowerCase() === name.toLowerCase())) {
+        showNotification('Участок с таким названием уже существует', 'error');
+        return;
+      }
+      
+      const newId = 'eq' + (equipment.length + 1);
+      equipment.push({ 
+        id: newId, 
+        name, 
+        hourlyRate,
+        setupTime,
+        status: 'active'
+      });
+      
+      // В реальном приложении здесь будет вызов API для сохранения
+      await mesApi.saveData('equipment', equipment);
+      
+      newEquipmentNameInput.value = '';
+      document.getElementById('hourlyRate').value = 50;
+      document.getElementById('setupTime').value = 2;
+
+      if (!currentEquipmentId) {
+        currentEquipmentId = newId;
+      }
+
+      await initEquipmentSelect();
+      await renderEquipmentTabs();
+      await renderGantt();
+      await renderOrdersList();
+      await renderLoadInfo();
+      showNotification('Участок успешно добавлен');
+    };
+
+    // Загрузка спецификации ГОСТ
+    loadGostBtn.onclick = async () => {
+      const fileInput = document.getElementById('gostFile');
+      if (!fileInput.files.length) {
+        showNotification('Выберите файл спецификации', 'error');
+        return;
+      }
+      
+      const file = fileInput.files[0];
+      const productType = document.getElementById('productType').value;
+      
+      try {
+        showNotification('Обработка спецификации...', 'warning');
+        gostData = await mesApi.processGostSpec(file, productType);
+        
+        // Отображение спецификации
+        specPreview.style.display = 'block';
+        specContent.innerHTML = '';
+        
+        const productHeader = document.createElement('div');
+        productHeader.className = 'spec-item-header';
+        productHeader.innerHTML = `<i class="fas fa-cube"></i> ${gostData.product}`;
+        specContent.appendChild(productHeader);
+        
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'spec-item-children';
+        
+        gostData.components.forEach(component => {
+          const compDiv = document.createElement('div');
+          compDiv.className = 'spec-item-child';
+          compDiv.innerHTML = `<i class="fas fa-puzzle-piece"></i> ${component.name} (${component.material}, ${component.quantity} шт.)`;
+          
+          const opsContainer = document.createElement('div');
+          opsContainer.className = 'spec-item-children';
+          
+          component.operations.forEach(op => {
+            const opDiv = document.createElement('div');
+            opDiv.className = 'spec-item-child';
+            opDiv.innerHTML = `<i class="fas fa-cog"></i> ${op.name} (${op.duration} дн., ${op.labor} ч.)`;
+            opsContainer.appendChild(opDiv);
+          });
+          
+          compDiv.appendChild(opsContainer);
+          childrenContainer.appendChild(compDiv);
+        });
+        
+        specContent.appendChild(childrenContainer);
+        showNotification('Спецификация успешно загружена');
+      } catch (error) {
+        showNotification('Ошибка обработки спецификации: ' + error.message, 'error');
+      }
+    };
+
+    // Генерация плана из спецификации
+    generatePlanBtn.onclick = async () => {
+      if (!gostData) {
+        showNotification('Сначала загрузите спецификацию', 'error');
+        return;
+      }
+      
+      try {
+        showNotification('Создание плана работ...', 'warning');
+        
+        const orders = await loadOrders();
+        const equipment = await loadEquipment();
+        const batchSize = parseInt(document.getElementById('batchSize').value) || 1;
+        const includeTesting = document.getElementById('includeTesting').checked;
+        
+        // Создаем задачи для каждой операции
+        let taskId = orders.length + 1;
+        let startDate = new Date();
+        
+        for (const component of gostData.components) {
+          for (const operation of component.operations) {
+            // Пропускаем тестирование если не включено
+            if (!includeTesting && operation.name.toLowerCase().includes('тест')) continue;
+            
+            const operationName = `${component.name}: ${operation.name} (Партия: ${batchSize})`;
+            const duration = operation.duration * batchSize;
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + duration);
+            
+            // Форматирование дат
+            const startStr = startDate.toISOString().split('T')[0];
+            const endStr = endDate.toISOString().split('T')[0];
+            
+            // Находим подходящее оборудование
+            const suitableEquipment = equipment.find(eq => 
+              eq.name.toLowerCase().includes(operation.equipmentType)
+            ) || equipment[0];
+            
+            orders.push({
+              id: `Task ${taskId++}`,
+              name: operationName,
+              start: startStr,
+              end: endStr,
+              progress: 0,
+              equipmentId: suitableEquipment.id,
+              dependency: '',
+              priority: 'medium',
+              materialCost: 0,
+              laborCost: operation.labor * batchSize
+            });
+            
+            // Следующая операция начинается после предыдущей
+            startDate = new Date(endDate);
+            startDate.setDate(startDate.getDate() + 1);
+          }
+        }
+        
+        // Сохраняем созданные задачи
+        await mesApi.saveData('orders', orders);
+        
+        // Обновляем интерфейс
+        await renderGantt();
+        await renderOrdersList();
+        await renderLoadInfo();
+        showNotification('План работ успешно создан');
+      } catch (error) {
+        showNotification('Ошибка создания плана: ' + error.message, 'error');
+      }
+    };
+
+    // Расчет стоимости заказа
+    calculateCostBtn.onclick = async () => {
+      const laborCostVal = parseFloat(laborCost.value) || 0;
+      const equipmentId = equipmentSelect.value;
+      
+      if (!equipmentId) {
+        showNotification('Выберите оборудование для расчета стоимости', 'error');
+        return;
+      }
+      
+      const equipment = await loadEquipment();
+      const equipmentItem = equipment.find(eq => eq.id === equipmentId);
+      
+      if (!equipmentItem) {
+        showNotification('Оборудование не найдено', 'error');
+        return;
+      }
+      
+      const hourlyRate = equipmentItem.hourlyRate || 0;
+      const laborCostTotal = laborCostVal * hourlyRate;
+      const materialCostVal = parseFloat(materialCost.value) || 0;
+      const totalCost = laborCostTotal + materialCostVal;
+      
+      showNotification(`Стоимость заказа: $${totalCost.toFixed(2)} (Материалы: $${materialCostVal}, Труд: $${laborCostTotal.toFixed(2)})`, 'info');
+    };
+
+    // Оптимизация плана
+    optimizeBtn.onclick = async () => {
+      const optimizationType = document.getElementById('optimizationType').value;
+      const deadline = document.getElementById('deadline').value;
+      const includeSetup = document.getElementById('includeSetup').checked;
+      const parallelWork = document.getElementById('parallelWork').checked;
+      
+      if (!deadline) {
+        showNotification('Укажите желаемый срок выполнения', 'error');
+        return;
+      }
+      
+      try {
+        showNotification('Оптимизация плана...', 'warning');
+        
+        const params = {
+          type: optimizationType,
+          deadline,
+          includeSetup,
+          parallelWork
+        };
+        
+        const result = await mesApi.optimizePlan(params);
+        
+        if (result.status === 'success') {
+          showNotification(`План оптимизирован! Экономия: $${result.savings}, Сокращение времени: ${result.timeReduction}%`, 'success');
+        } else {
+          showNotification('Не удалось оптимизировать план', 'error');
+        }
+      } catch (error) {
+        showNotification('Ошибка оптимизации: ' + error.message, 'error');
+      }
+    };
+
+    // Экспорт данных
+    exportBtn.onclick = async () => {
+      try {
+        const equipment = await loadEquipment();
+        const orders = await loadOrders();
+        const exportData = { equipment, orders };
+        importExportArea.value = JSON.stringify(exportData, null, 2);
+        showNotification('Данные экспортированы в текстовое поле');
+      } catch (error) {
+        showNotification('Ошибка экспорта данных: ' + error.message, 'error');
+      }
+    };
+
+    // Копирование данных
+    copyBtn.onclick = () => {
+      importExportArea.select();
+      document.execCommand('copy');
+      showNotification('Данные скопированы в буфер обмена');
+    };
+
+    // Импорт данных
+    importBtn.onclick = async () => {
+      try {
+        const data = JSON.parse(importExportArea.value);
+        if (!data.equipment || !data.orders) {
+          showNotification('Неверный формат данных для импорта', 'error');
+          return;
+        }
+        
+        // В реальном приложении здесь будет вызов API для сохранения
+        await mesApi.saveData('equipment', data.equipment);
+        await mesApi.saveData('orders', data.orders);
+        
+        if (data.equipment.length) {
+          currentEquipmentId = data.equipment[0].id;
+        } else {
+          currentEquipmentId = null;
+        }
+        
+        await initEquipmentSelect();
+        await renderEquipmentTabs();
+        await renderGantt();
+        await renderOrdersList();
+        await renderLoadInfo();
+        clearForm();
+        showNotification('Данные успешно импортированы');
+      } catch (e) {
+        showNotification('Ошибка при импорте данных: ' + e.message, 'error');
+      }
+    };
+
+    // Синхронизация с API
+    syncApiBtn.onclick = async () => {
+      try {
+        showNotification('Синхронизация данных...', 'warning');
+        
+        await initEquipmentSelect();
+        await renderEquipmentTabs();
+        await renderGantt();
+        await renderOrdersList();
+        await renderLoadInfo();
+        
+        showNotification('Данные успешно синхронизированы');
+      } catch (error) {
+        showNotification('Ошибка синхронизации: ' + error.message, 'error');
+      }
+    };
+
+    // Обновление статистики
+    async function updateStats() {
+      const orders = await loadOrders();
+      const equipment = await loadEquipment();
+      
+      totalOrders.textContent = orders.length;
+      totalEquipment.textContent = equipment.length;
+      
+      // Расчет средней загрузки
+      let totalLoad = 0;
+      equipment.forEach(eq => {
+        const eqOrders = orders.filter(o => o.equipmentId === eq.id);
+        const load = calculateLoadForEquipment(eqOrders);
+        totalLoad += load;
+      });
+      
+      const avgLoadValue = equipment.length ? Math.round(totalLoad / equipment.length) : 0;
+      avgLoad.textContent = `${avgLoadValue}%`;
+      
+      // Расчет эффективности (упрощенный)
+      const efficiencyValue = orders.length ? 
+        Math.min(100, Math.round(orders.reduce((sum, o) => sum + o.progress, 0) / orders.length)) : 0;
+      efficiency.textContent = `${efficiencyValue}%`;
+    }
+    
+    // Расчет загрузки для оборудования
+    function calculateLoadForEquipment(orders) {
+      if (!orders.length) return 0;
+      
+      let totalDays = 0;
+      orders.forEach(t => {
+        const start = new Date(t.start);
+        const end = new Date(t.end);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        totalDays += diffDays;
+      });
+      
+      return Math.min(100, Math.round((totalDays / 30) * 100));
+    }
+
+    // Инициализация интерфейса
+    async function init() {
+      const equipment = await loadEquipment();
+      if (equipment.length) {
+        currentEquipmentId = equipment[0].id;
+      } else {
+        currentEquipmentId = null;
+      }
+      
+      await initEquipmentSelect();
+      await renderEquipmentTabs();
+      await renderGantt();
+      await renderOrdersList();
+      await renderLoadInfo();
+      await updateDependencyOptions();
+      await updateStats();
+      
+      // Установка текущей даты
+      const today = new Date();
+      startDateInput.value = today.toISOString().split('T')[0];
+      
+      // Установка минимальной даты для окончания заказа
+      startDateInput.addEventListener('change', () => {
+        endDateInput.min = startDateInput.value;
+      });
+      
+      // Обработка поиска заказов
+      searchOrdersInput.addEventListener('input', async () => {
+        await renderOrdersList();
+      });
+      
+      // Обновление при изменении фильтров
+      document.getElementById('priorityFilter').addEventListener('change', async () => {
+        await renderOrdersList();
+      });
+      
+      // Обновление статистики каждые 30 секунд
+      setInterval(updateStats, 30000);
+    }
+
+    // Запуск приложения
+    init();
+  </script>
+</body>
+</html>
