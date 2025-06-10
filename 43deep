@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MES Pro - Управление производством</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #2c3e50;
+      --primary-dark: #1a2530;
+      --secondary: #3498db;
+      --success: #27ae60;
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --info: #2980b9;
+      --light: #f8f9fa;
+      --dark: #212529;
+      --gray: #7f8c8d;
+      --border: #bdc3c7;
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      --hover-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+      --transition: all 0.3s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #ecf0f1;
+      color: var(--dark);
+      line-height: 1.6;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1800px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      padding: 20px 24px;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--secondary), var(--success));
+    }
+
+    .header-content {
+      flex: 1;
+      position: relative;
+      z-index: 2;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    .api-status {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .api-status.online {
+      color: var(--success);
+    }
+
+    .api-status.offline {
+      color: var(--danger);
+    }
+
+    h1 {
+      font-weight: 700;
+      font-size: 28px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 i {
+      font-size: 32px;
+      color: var(--secondary);
+    }
+
+    .subtitle {
+      font-weight: 300;
+      opacity: 0.9;
+      font-size: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      padding: 24px;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--secondary);
+    }
+
+    .card:hover {
+      box-shadow: var(--hover-shadow);
+      transform: translateY(-3px);
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--primary);
+    }
+
+    .card-title i {
+      color: var(--secondary);
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(52, 152, 219, 0.1);
+      border-radius: 50%;
+    }
+
+    .flex-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .col {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .col-2 {
+      flex: 2;
+      min-width: 600px;
+    }
+
+    .col-3 {
+      flex: 3;
+      min-width: 900px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--dark);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px;
+      transition: var(--transition);
+      background: var(--light);
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 15px 0;
+    }
+
+    .checkbox-group input {
+      width: auto;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: 500;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      background: var(--secondary);
+      color: white;
+    }
+
+    .btn:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .btn i {
+      font-size: 18px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--secondary);
+      color: var(--secondary);
+    }
+
+    .btn-outline:hover {
+      background: rgba(52, 152, 219, 0.1);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+
+    .btn-success {
+      background: var(--success);
+    }
+
+    .btn-success:hover {
+      background: #219653;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: var(--dark);
+    }
+
+    .btn-warning:hover {
+      background: #e67e22;
+      color: white;
+    }
+
+    .btn-info {
+      background: var(--info);
+    }
+
+    .btn-info:hover {
+      background: #1c6ea4;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    #gantt {
+      height: 500px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: white;
+    }
+
+    .equipment-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: var(--light);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tab-btn:hover {
+      background: #e9ecef;
+    }
+
+    .tab-btn.active {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .tab-btn .badge {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      padding: 2px 8px;
+      font-size: 12px;
+    }
+
+    .del-eq {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: var(--danger);
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .tab-btn:hover .del-eq {
+      opacity: 1;
+    }
+
+    .load-info {
+      background: rgba(52, 152, 219, 0.1);
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .load-info i {
+      font-size: 24px;
+      color: var(--secondary);
+    }
+
+    .load-content h3 {
+      font-size: 18px;
+      margin-bottom: 5px;
+      color: var(--primary);
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      background: var(--secondary);
+      border-radius: 4px;
+    }
+
+    #ordersList {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+    }
+
+    .order-item {
+      padding: 15px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .order-item:hover {
+      background: rgba(52, 152, 219, 0.05);
+    }
+
+    .order-item.selected {
+      background: rgba(52, 152, 219, 0.1);
+      border-left: 3px solid var(--secondary);
+    }
+
+    .order-info {
+      flex: 1;
+    }
+
+    .order-name {
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: var(--primary);
+    }
+
+    .order-dates {
+      font-size: 14px;
+      color: var(--gray);
+      display: flex;
+      gap: 15px;
+    }
+
+    .order-progress {
+      font-size: 14px;
+      font-weight: 500;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .order-progress.high {
+      color: var(--success);
+    }
+
+    .order-progress.medium {
+      color: var(--warning);
+    }
+
+    .order-progress.low {
+      color: var(--danger);
+    }
+
+    .order-cost {
+      font-size: 13px;
+      background: rgba(39, 174, 96, 0.1);
+      color: var(--success);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+
+    .order-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--light);
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--dark);
+    }
+
+    .action-btn:hover {
+      background: #e9ecef;
+      color: var(--danger);
+    }
+
+    .search-container {
+      position: relative;
+      margin-bottom: 15px;
+    }
+
+    .search-container i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray);
+    }
+
+    .search-container input {
+      padding-left: 40px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: var(--gray);
+    }
+
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.3;
+    }
+
+    .empty-state p {
+      margin-top: 10px;
+    }
+
+    .dependency-indicator {
+      display: inline-block;
+      background: rgba(52, 152, 219, 0.1);
+      color: var(--secondary);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+
+    .import-export-area {
+      width: 100%;
+      height: 150px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 14px;
+      resize: vertical;
+      margin: 15px 0;
+      background: var(--light);
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+      transform: translateX(120%);
+      transition: transform 0.3s ease;
+      max-width: 400px;
+    }
+
+    .notification.show {
+      transform: translateX(0);
+    }
+
+    .notification.success {
+      border-left: 4px solid var(--success);
+    }
+
+    .notification.error {
+      border-left: 4px solid var(--danger);
+    }
+
+    .notification.warning {
+      border-left: 4px solid var(--warning);
+    }
+
+    .notification i {
+      font-size: 20px;
+    }
+
+    .spec-preview {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #f8f9fa;
+    }
+
+    .spec-item {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .spec-item-header {
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+      color: var(--primary);
+    }
+
+    .spec-item-children {
+      padding-left: 20px;
+      margin-top: 8px;
+    }
+
+    .spec-item-child {
+      padding: 5px;
+      border-left: 2px solid var(--secondary);
+      margin-bottom: 5px;
+      background: rgba(52, 152, 219, 0.03);
+    }
+
+    .gost-section {
+      background: #f8f9ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #dbe4ff;
+    }
+
+    .gost-section h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+
+    .api-section {
+      background: #f0f7ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #cce5ff;
+    }
+
+    .dashboard-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--hover-shadow);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 10px 0;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      color: var(--gray);
+      font-size: 14px;
+    }
+
+    .stat-card i {
+      font-size: 32px;
+      color: var(--secondary);
+      margin-bottom: 10px;
+    }
+
+    .kpi-indicator {
+      height: 6px;
+      background: #ecf0f1;
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .kpi-progress {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    .kpi-good {
+      background: var(--success);
+    }
+
+    .kpi-medium {
+      background: var(--warning);
+    }
+
+    .kpi-bad {
+      background: var(--danger);
+    }
+
+    .resource-management {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .resource-card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .resource-card h4 {
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .resource-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .resource-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .resource-item:last-child {
+      border-bottom: none;
+    }
+
+    .time-input {
+      width: 80px;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .cost-input {
+      width: 120px;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      text-align: right;
+    }
+
+    .analytics-section {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .analytics-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .chart-container {
+      height: 300px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .chart-placeholder {
+      text-align: center;
+      color: var(--gray);
+    }
+
+    .chart-placeholder i {
+      font-size: 48px;
+      margin-bottom: 10px;
+      opacity: 0.3;
+    }
+
+    .priority-select {
+      width: 150px;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .optimization-card {
+      background: #fff8e1;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #ffe082;
+    }
+
+    .optimization-card h4 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+
+    .deadline-input {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .deadline-input input {
+      flex: 1;
+    }
+
+    .role-selector {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    .role-btn {
+      padding: 10px 20px;
+      border-radius: 6px;
+      background: #e9ecef;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: var(--transition);
+    }
+
+    .role-btn.active {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .ai-assistant {
+      background: #e8f5e9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #c8e6c9;
+    }
+
+    .ai-assistant textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+
+    .ai-response {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      border: 1px solid var(--border);
+      margin-top: 15px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--secondary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-stats {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+    }
+
+    @media (max-width: 992px) {
+      .flex-row {
+        flex-direction: column;
+      }
+      
+      .col, .col-2, .col-3 {
+        min-width: 100%;
+      }
+      
+      #gantt {
+        height: 400px;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+
+      .header-stats {
+        flex-wrap: wrap;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .btn-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+      }
+
+      .resource-management {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 576px) {
+      body {
+        padding: 15px;
+      }
+      
+      .card {
+        padding: 20px 15px;
+      }
+
+      .stat-value {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <h1><i class="fas fa-industry"></i> MES Pro - Управление производством</h1>
+        <p class="subtitle">Система планирования и контроля производственных процессов</p>
+        
+        <div class="header-stats">
+          <div class="stat-item">
+            <i class="fas fa-tasks"></i> Заказы: <span class="stat-value" id="totalOrders">0</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-cogs"></i> Оборудование: <span class="stat-value" id="totalEquipment">0</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-chart-line"></i> Загрузка: <span class="stat-value" id="avgLoad">0%</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-money-bill-wave"></i> Эффективность: <span class="stat-value" id="efficiency">0%</span>
+          </div>
+        </div>
+      </div>
+      <div class="user-info">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div>
+          <div id="userName">Администратор</div>
+          <div id="userRole">Роль: Админ</div>
+        </div>
+      </div>
+    </header>
+    
+    <div class="role-selector">
+      <button class="role-btn active" data-role="admin">Администратор</button>
+      <button class="role-btn" data-role="planner">Планировщик</button>
+      <button class="role-btn" data-role="director">Директор</button>
+      <button class="role-btn" data-role="client">Клиент</button>
+      <button class="role-btn" data-role="director-planner">Директор+Планировщик</button>
+    </div>
+    
+    <div class="flex-row">
+      <div class="col">
+        <div class="card admin-view">
+          <h2 class="card-title"><i class="fas fa-cogs"></i> Управление участками</h2>
+          <form id="addEquipmentForm">
+            <div class="form-group">
+              <label for="newEquipmentName">Название нового участка</label>
+              <input type="text" id="newEquipmentName" class="form-control" placeholder="Введите название участка" required />
+            </div>
+            
+            <div class="flex-row">
+              <div class="col">
+                <div class="form-group">
+                  <label for="hourlyRate">Стоимость часа работы ($)</label>
+                  <input type="number" id="hourlyRate" class="form-control" min="0" step="0.1" value="50" required />
+                </div>
+              </div>
+              <div class="col">
+                <div class="form-group">
+                  <label for="setupTime">Время переналадки (ч)</label>
+                  <input type="number" id="setupTime" class="form-control" min="0" value="2" required />
+                </div>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn"><i class="fas fa-plus"></i> Добавить участок</button>
+          </form>
+          
+          <div class="ai-assistant admin-view">
+            <h3><i class="fas fa-robot"></i> AI-ассистент для создания структуры</h3>
+            <p>Опишите структуру вашего производства:</p>
+            <textarea id="aiStructureInput" placeholder="Пример: У меня есть три участка: фрезерный с двумя станками, токарный с тремя станками и участок сборки. Также есть склад материалов."></textarea>
+            <button class="btn btn-success" id="aiGenerateStructureBtn">
+              <i class="fas fa-magic"></i> Создать структуру
+            </button>
+            <div class="ai-response" id="aiStructureResponse">
+              Результат генерации структуры появится здесь...
+            </div>
+          </div>
+          
+          <div class="load-info" id="loadInfo">
+            <i class="fas fa-chart-bar"></i>
+            <div class="load-content">
+              <h3>Загрузка оборудования</h3>
+              <p>Выберите участок для просмотра загрузки</p>
+              <div class="progress-bar">
+                <div class="progress"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="equipment-tabs" id="equipmentTabs"></div>
+        </div>
+        
+        <div class="card planner-view">
+          <h2 class="card-title"><i class="fas fa-tasks"></i> Список заказов</h2>
+          <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchOrders" class="form-control" placeholder="Поиск заказов..." />
+          </div>
+          <div id="ordersList">
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>Нет заказов</h3>
+              <p>Добавьте заказы для отображения в списке</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card admin-view">
+          <h2 class="card-title"><i class="fas fa-users"></i> Управление пользователями</h2>
+          <div class="form-group">
+            <label for="userNameInput">Имя пользователя</label>
+            <input type="text" id="userNameInput" class="form-control" placeholder="Введите имя пользователя" />
+          </div>
+          <div class="form-group">
+            <label for="userRoleSelect">Роль</label>
+            <select id="userRoleSelect" class="form-control">
+              <option value="admin">Администратор</option>
+              <option value="planner">Планировщик</option>
+              <option value="director">Директор</option>
+              <option value="client">Клиент</option>
+              <option value="director-planner">Директор+Планировщик</option>
+            </select>
+          </div>
+          <button class="btn" id="addUserBtn">
+            <i class="fas fa-user-plus"></i> Добавить пользователя
+          </button>
+        </div>
+      </div>
+      
+      <div class="col-3">
+        <div class="card planner-view">
+          <h2 class="card-title"><i class="fas fa-chart-gantt"></i> Диаграмма Ганта</h2>
+          <div class="flex-row">
+            <div class="col">
+              <div class="form-group">
+                <label for="timeScale">Масштаб времени</label>
+                <select id="timeScale" class="form-control">
+                  <option value="day">День</option>
+                  <option value="week" selected>Неделя</option>
+                  <option value="month">Месяц</option>
+                  <option value="quarter">Квартал</option>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="viewMode">Режим отображения</label>
+                <select id="viewMode" class="form-control">
+                  <option value="all">Все участки</option>
+                  <option value="current" selected>Текущий участок</option>
+                  <option value="critical">Критический путь</option>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="priorityFilter">Приоритет</label>
+                <select id="priorityFilter" class="form-control">
+                  <option value="all">Все</option>
+                  <option value="high">Высокий</option>
+                  <option value="medium">Средний</option>
+                  <option value="low">Низкий</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div id="gantt">
+            <div class="empty-state">
+              <i class="fas fa-chart-line"></i>
+              <h3>Нет данных для отображения</h3>
+              <p>Добавьте оборудование и заказы для построения диаграммы</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="gost-section planner-view">
+          <h3><i class="fas fa-file-contract"></i> Импорт конструкторской документации (ГОСТ 2.105-95)</h3>
+          <p>Загрузите спецификацию для автоматического создания плана работ</p>
+          
+          <div class="flex-row">
+            <div class="col">
+              <div class="form-group">
+                <label for="gostFile">Файл спецификации</label>
+                <input type="file" id="gostFile" class="form-control" accept=".json,.xml">
+              </div>
+              <button class="btn btn-warning" id="loadGostBtn">
+                <i class="fas fa-upload"></i> Загрузить спецификацию
+              </button>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="productType">Тип изделия</label>
+                <select id="productType" class="form-control">
+                  <option value="mechanical">Механическая обработка</option>
+                  <option value="electronic">Электронная сборка</option>
+                  <option value="assembly">Сборочный узел</option>
+                </select>
+              </div>
+              <button class="btn btn-success" id="generatePlanBtn">
+                <i class="fas fa-cogs"></i> Создать план
+              </button>
+            </div>
+          </div>
+          
+          <div class="spec-preview" id="specPreview" style="display: none;">
+            <h4>Предпросмотр спецификации:</h4>
+            <div id="specContent"></div>
+          </div>
+        </div>
+        
+        <div class="ai-assistant planner-view">
+          <h3><i class="fas fa-robot"></i> AI-ассистент для создания заказов</h3>
+          <p>Опишите производственный заказ:</p>
+          <textarea id="aiOrderInput" placeholder="Пример: Нужно изготовить 100 деталей корпуса. Фрезеровка займет 2 дня на фрезерном участке, затем сверление 1 день. После этого сборка 3 дня."></textarea>
+          <button class="btn btn-success" id="aiGenerateOrderBtn">
+            <i class="fas fa-magic"></i> Создать заказ
+          </button>
+          <div class="ai-response" id="aiOrderResponse">
+            Результат генерации заказа появится здесь...
+          </div>
+        </div>
+        
+        <div class="flex-row">
+          <div class="col-2">
+            <div class="card planner-view">
+              <h2 class="card-title"><i class="fas fa-edit"></i> Редактор заказов</h2>
+              <form id="orderForm">
+                <input type="hidden" id="orderId" />
+                <div class="form-group">
+                  <label for="orderName">Название заказа</label>
+                  <input type="text" id="orderName" class="form-control" placeholder="Введите название заказа" required />
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="equipmentSelect">Оборудование (участок)</label>
+                      <select id="equipmentSelect" class="form-control" required></select>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="orderPriority">Приоритет</label>
+                      <select id="orderPriority" class="form-control">
+                        <option value="high">Высокий</option>
+                        <option value="medium" selected>Средний</option>
+                        <option value="low">Низкий</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="startDate">Дата начала</label>
+                      <input type="date" id="startDate" class="form-control" required />
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="endDate">Дата окончания</label>
+                      <input type="date" id="endDate" class="form-control" required />
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="materialCost">Стоимость материалов ($)</label>
+                      <input type="number" id="materialCost" class="form-control" min="0" step="0.01" value="0" />
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="laborCost">Трудозатраты (ч)</label>
+                      <input type="number" id="laborCost" class="form-control" min="0" step="0.5" value="0" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="dependencySelect">Зависимость</label>
+                  <select id="dependencySelect" class="form-control">
+                    <option value="">Нет зависимости</option>
+                  </select>
+                  <span class="dependency-indicator">Выберите заказ, который должен завершиться до начала этого</span>
+                </div>
+                
+                <div class="checkbox-group">
+                  <input type="checkbox" id="autoAssign" />
+                  <label for="autoAssign">Авто-распределение по участку с минимальной загрузкой</label>
+                </div>
+                
+                <div class="btn-group">
+                  <button type="submit" id="saveBtn" class="btn"><i class="fas fa-save"></i> Добавить заказ</button>
+                  <button type="button" id="cancelEditBtn" class="btn btn-outline" style="display:none;"><i class="fas fa-times"></i> Отмена</button>
+                  <button type="button" id="calculateCostBtn" class="btn btn-info"><i class="fas fa-calculator"></i> Рассчитать стоимость</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <div class="col">
+            <div class="card">
+              <h2 class="card-title"><i class="fas fa-file-export"></i> Экспорт / Импорт</h2>
+              <div class="btn-group">
+                <button id="exportBtn" class="btn btn-success"><i class="fas fa-download"></i> Экспортировать данные</button>
+                <button id="importBtn" class="btn"><i class="fas fa-upload"></i> Импортировать данные</button>
+                <button id="copyBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Копировать</button>
+              </div>
+              <textarea id="importExportArea" class="import-export-area" placeholder="Вставьте сюда JSON для импорта или получите экспортированные данные"></textarea>
+            </div>
+            
+            <div class="api-section">
+              <h3><i class="fas fa-code"></i> API интеграция</h3>
+              <div class="form-group">
+                <label for="apiEndpoint">API Endpoint</label>
+                <input type="text" id="apiEndpoint" class="form-control" value="https://api.mes-system.com/v1" readonly>
+              </div>
+              <div class="form-group">
+                <label for="apiKey">API Key</label>
+                <input type="text" id="apiKey" class="form-control" value="sk_1234567890abcdef" readonly>
+              </div>
+              <button class="btn" id="syncApiBtn">
+                <i class="fas fa-sync-alt"></i> Синхронизировать с API
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="analytics-section director-view">
+      <div class="analytics-header">
+        <h3><i class="fas fa-chart-pie"></i> Аналитика производства</h3>
+        <select id="analyticsPeriod" class="priority-select">
+          <option value="week">Неделя</option>
+          <option value="month" selected>Месяц</option>
+          <option value="quarter">Квартал</option>
+          <option value="year">Год</option>
+        </select>
+      </div>
+      
+      <div class="dashboard-stats">
+        <div class="stat-card">
+          <i class="fas fa-money-bill-wave"></i>
+          <div class="stat-value">$24,580</div>
+          <div class="stat-label">Общая стоимость производства</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-good" style="width: 85%"></div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <i class="fas fa-clock"></i>
+          <div class="stat-value">92%</div>
+          <div class="stat-label">Использование оборудования</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-good" style="width: 92%"></div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <i class="fas fa-truck-loading"></i>
+          <div class="stat-value">87%</div>
+          <div class="stat-label">Выполнение плана</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-medium" style="width: 87%"></div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <i class="fas fa-user-clock"></i>
+          <div class="stat-value">78%</div>
+          <div class="stat-label">Эффективность труда</div>
+          <div class="kpi-indicator">
+            <div class="kpi-progress kpi-medium" style="width: 78%"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-placeholder">
+          <i class="fas fa-chart-bar"></i>
+          <h4>Графики загрузки и эффективности</h4>
+          <p>Данные будут отображены после начала работы</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="notification" id="notification">
+    <i class="fas fa-check-circle"></i>
+    <div class="notification-content"></div>
+  </div>
+
+  <script>
+    // Конфигурация ролей
+    const ROLES = {
+      ADMIN: 'admin',
+      PLANNER: 'planner',
+      DIRECTOR: 'director',
+      CLIENT: 'client',
+      DIRECTOR_PLANNER: 'director-planner'
+    };
+    
+    // Права доступа для ролей
+    const PERMISSIONS = {
+      [ROLES.ADMIN]: [
+        'manage_equipment', 'manage_users', 'view_all', 'edit_all', 
+        'ai_structure', 'ai_orders', 'import_export'
+      ],
+      [ROLES.PLANNER]: [
+        'create_orders', 'edit_orders', 'view_orders', 'view_gantt', 
+        'import_gost', 'ai_orders'
+      ],
+      [ROLES.DIRECTOR]: [
+        'view_reports', 'view_analytics', 'view_gantt'
+      ],
+      [ROLES.CLIENT]: [
+        'create_orders', 'view_own_orders'
+      ],
+      [ROLES.DIRECTOR_PLANNER]: [
+        'create_orders', 'edit_orders', 'view_orders', 'view_gantt', 
+        'view_reports', 'view_analytics', 'import_gost', 'ai_orders'
+      ]
+    };
+    
+    // Текущая роль пользователя
+    let currentRole = ROLES.ADMIN;
+    
+    // Инициализация элементов DOM после загрузки страницы
+    document.addEventListener('DOMContentLoaded', () => {
+      // Инициализация элементов DOM
+      const equipmentTabs = document.getElementById('equipmentTabs');
+      const loadInfo = document.getElementById('loadInfo');
+      const ordersList = document.getElementById('ordersList');
+      const equipmentSelect = document.getElementById('equipmentSelect');
+      const orderForm = document.getElementById('orderForm');
+      const orderIdInput = document.getElementById('orderId');
+      const orderNameInput = document.getElementById('orderName');
+      const startDateInput = document.getElementById('startDate');
+      const endDateInput = document.getElementById('endDate');
+      const saveBtn = document.getElementById('saveBtn');
+      const cancelEditBtn = document.getElementById('cancelEditBtn');
+      const addEquipmentForm = document.getElementById('addEquipmentForm');
+      const newEquipmentNameInput = document.getElementById('newEquipmentName');
+      const searchOrdersInput = document.getElementById('searchOrders');
+      const autoAssignCheckbox = document.getElementById('autoAssign');
+      const dependencySelect = document.getElementById('dependencySelect');
+      const exportBtn = document.getElementById('exportBtn');
+      const importBtn = document.getElementById('importBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const importExportArea = document.getElementById('importExportArea');
+      const notification = document.getElementById('notification');
+      const loadGostBtn = document.getElementById('loadGostBtn');
+      const generatePlanBtn = document.getElementById('generatePlanBtn');
+      const specPreview = document.getElementById('specPreview');
+      const specContent = document.getElementById('specContent');
+      const syncApiBtn = document.getElementById('syncApiBtn');
+      const calculateCostBtn = document.getElementById('calculateCostBtn');
+      const optimizeBtn = document.getElementById('optimizeBtn');
+      const totalOrders = document.getElementById('totalOrders');
+      const totalEquipment = document.getElementById('totalEquipment');
+      const avgLoad = document.getElementById('avgLoad');
+      const efficiency = document.getElementById('efficiency');
+      const orderPriority = document.getElementById('orderPriority');
+      const materialCost = document.getElementById('materialCost');
+      const laborCost = document.getElementById('laborCost');
+      const aiGenerateStructureBtn = document.getElementById('aiGenerateStructureBtn');
+      const aiStructureInput = document.getElementById('aiStructureInput');
+      const aiStructureResponse = document.getElementById('aiStructureResponse');
+      const aiGenerateOrderBtn = document.getElementById('aiGenerateOrderBtn');
+      const aiOrderInput = document.getElementById('aiOrderInput');
+      const aiOrderResponse = document.getElementById('aiOrderResponse');
+      const roleButtons = document.querySelectorAll('.role-btn');
+      const userAvatar = document.getElementById('userAvatar');
+      const userName = document.getElementById('userName');
+      const userRole = document.getElementById('userRole');
+      
+      // Инициализация API
+      const mesApi = {
+        // Заглушки для API вызовов
+        createStructureFromAI: async (description) => {
+          return new Promise(resolve => setTimeout(() => {
+            resolve({
+              success: true,
+              message: `Структура успешно создана на основе описания: "${description}"`,
+              equipment: [
+                { id: 'eq1', name: 'Фрезерный участок', stations: 2 },
+                { id: 'eq2', name: 'Токарный участок', stations: 3 },
+                { id: 'eq3', name: 'Участок сборки', stations: 1 }
+              ]
+            });
+          }, 1500));
+        },
+        
+        createOrderFromAI: async (description) => {
+          return new Promise(resolve => setTimeout(() => {
+            resolve({
+              success: true,
+              message: `Заказ успешно создан на основе описания: "${description}"`,
+              order: {
+                id: 'Task 100',
+                name: 'Изготовление деталей корпуса',
+                start: '2024-02-01',
+                end: '2024-02-07',
+                equipmentId: 'eq1'
+              }
+            });
+          }, 1500));
+        },
+        
+        // Остальные методы API...
+      };
+      
+      // Показ уведомлений
+      function showNotification(message, type = 'success') {
+        const notificationContent = notification.querySelector('.notification-content');
+        notificationContent.textContent = message;
+        
+        notification.className = 'notification';
+        notification.classList.add(type);
+        notification.classList.add('show');
+        
+        if (type === 'success') {
+          notification.querySelector('i').className = 'fas fa-check-circle';
+        } else if (type === 'error') {
+          notification.querySelector('i').className = 'fas fa-exclamation-circle';
+        } else {
+          notification.querySelector('i').className = 'fas fa-info-circle';
+        }
+        
+        setTimeout(() => {
+          notification.classList.remove('show');
+        }, 3000);
+      }
+      
+      // Обновление интерфейса в зависимости от роли
+      function updateUIForRole() {
+        // Скрыть все специфичные для ролей элементы
+        document.querySelectorAll('.admin-view, .planner-view, .director-view, .client-view')
+          .forEach(el => el.style.display = 'none');
+        
+        // Показать элементы для текущей роли
+        switch(currentRole) {
+          case ROLES.ADMIN:
+            document.querySelectorAll('.admin-view').forEach(el => el.style.display = 'block');
+            userAvatar.textContent = 'A';
+            userName.textContent = 'Администратор';
+            userRole.textContent = 'Роль: Админ';
+            break;
+            
+          case ROLES.PLANNER:
+            document.querySelectorAll('.planner-view').forEach(el => el.style.display = 'block');
+            userAvatar.textContent = 'P';
+            userName.textContent = 'Технолог Иванов';
+            userRole.textContent = 'Роль: Планировщик';
+            break;
+            
+          case ROLES.DIRECTOR:
+            document.querySelectorAll('.director-view').forEach(el => el.style.display = 'block');
+            userAvatar.textContent = 'D';
+            userName.textContent = 'Директор Петров';
+            userRole.textContent = 'Роль: Директор';
+            break;
+            
+          case ROLES.CLIENT:
+            document.querySelectorAll('.planner-view').forEach(el => el.style.display = 'block');
+            userAvatar.textContent = 'C';
+            userName.textContent = 'Клиент ООО "Ромашка"';
+            userRole.textContent = 'Роль: Клиент';
+            break;
+            
+          case ROLES.DIRECTOR_PLANNER:
+            document.querySelectorAll('.planner-view, .director-view').forEach(el => el.style.display = 'block');
+            userAvatar.textContent = 'DP';
+            userName.textContent = 'Директор Сидоров';
+            userRole.textContent = 'Роль: Директор+Планировщик';
+            break;
+        }
+      }
+      
+      // Обработчики для переключения ролей
+      roleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Убрать активный класс у всех кнопок
+          roleButtons.forEach(b => b.classList.remove('active'));
+          // Добавить активный класс текущей кнопке
+          btn.classList.add('active');
+          // Обновить текущую роль
+          currentRole = btn.dataset.role;
+          // Обновить интерфейс
+          updateUIForRole();
+        });
+      });
+      
+      // Генерация структуры с помощью ИИ
+      aiGenerateStructureBtn.addEventListener('click', async () => {
+        const description = aiStructureInput.value.trim();
+        if (!description) {
+          showNotification('Введите описание структуры производства', 'error');
+          return;
+        }
+        
+        aiStructureResponse.textContent = 'Генерация структуры...';
+        showNotification('ИИ обрабатывает ваш запрос', 'warning');
+        
+        try {
+          const result = await mesApi.createStructureFromAI(description);
+          aiStructureResponse.textContent = result.message;
+          showNotification('Структура успешно создана!', 'success');
+          
+          // Здесь можно добавить логику для отображения созданной структуры
+          if (result.equipment) {
+            // Обновить список оборудования и т.д.
+          }
+        } catch (error) {
+          aiStructureResponse.textContent = 'Ошибка при генерации структуры: ' + error.message;
+          showNotification('Ошибка создания структуры', 'error');
+        }
+      });
+      
+      // Генерация заказа с помощью ИИ
+      aiGenerateOrderBtn.addEventListener('click', async () => {
+        const description = aiOrderInput.value.trim();
+        if (!description) {
+          showNotification('Введите описание заказа', 'error');
+          return;
+        }
+        
+        aiOrderResponse.textContent = 'Генерация заказа...';
+        showNotification('ИИ обрабатывает ваш запрос', 'warning');
+        
+        try {
+          const result = await mesApi.createOrderFromAI(description);
+          aiOrderResponse.textContent = result.message;
+          showNotification('Заказ успешно создан!', 'success');
+          
+          // Здесь можно добавить логику для отображения созданного заказа
+          if (result.order) {
+            // Добавить заказ в список, обновить диаграмму Ганта и т.д.
+          }
+        } catch (error) {
+          aiOrderResponse.textContent = 'Ошибка при генерации заказа: ' + error.message;
+          showNotification('Ошибка создания заказа', 'error');
+        }
+      });
+      
+      // Инициализация интерфейса
+      function init() {
+        // Установка текущей даты
+        const today = new Date();
+        startDateInput.value = today.toISOString().split('T')[0];
+        
+        // Установка минимальной даты для окончания заказа
+        startDateInput.addEventListener('change', () => {
+          endDateInput.min = startDateInput.value;
+        });
+        
+        // Обновление интерфейса для текущей роли
+        updateUIForRole();
+        
+        // Здесь можно добавить инициализацию данных
+        totalOrders.textContent = '12';
+        totalEquipment.textContent = '5';
+        avgLoad.textContent = '78%';
+        efficiency.textContent = '85%';
+      }
+      
+      // Запуск приложения
+      init();
+    });
+  </script>
+</body>
+</html>
