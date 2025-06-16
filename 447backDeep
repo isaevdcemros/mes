@@ -1,0 +1,602 @@
+require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const mysql = require('mysql2/promise');
+const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcrypt');
+const { Configuration, OpenAIApi } = require('openai');
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(express.static('public'));
+
+// Database configuration
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'mes_user',
+  password: process.env.DB_PASSWORD || 'secure_password',
+  database: process.env.DB_NAME || 'mes_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+};
+
+const pool = mysql.createPool(dbConfig);
+const saltRounds = 10;
+
+// Initialize OpenAI
+const openai = new OpenAIApi(new Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+}));
+
+// ==================== MODELS ====================
+
+class UserModel {
+  static async create(user) {
+    const hashedPassword = await bcrypt.hash(user.password, saltRounds);
+    const [result] = await pool.query(
+      'INSERT INTO users (id, username, password, role, tenant_id) VALUES (?, ?, ?, ?, ?)',
+      [uuidv4(), user.username, hashedPassword, user.role, user.tenant_id]
+    );
+    return { id: result.insertId, ...user };
+  }
+
+  static async findByUsername(username) {
+    const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+    return rows[0];
+  }
+
+  static async getUsersByTenant(tenantId) {
+    const [rows] = await pool.query('SELECT id, username, role, created_at FROM users WHERE tenant_id = ?', [tenantId]);
+    return rows;
+  }
+
+  static async updateUserRole(userId, newRole) {
+    await pool.query('UPDATE users SET role = ? WHERE id = ?', [newRole, userId]);
+    return true;
+  }
+}
+
+class TenantModel {
+  static async create(tenantData) {
+    const tenantId = uuidv4();
+    const [result] = await pool.query(
+      'INSERT INTO tenants (id, name, industry, config) VALUES (?, ?, ?, ?)',
+      [tenantId, tenantData.name, tenantData.industry, JSON.stringify(tenantData.config)]
+    );
+    return { id: tenantId, ...tenantData };
+  }
+
+  static async getById(tenantId) {
+    const [rows] = await pool.query('SELECT * FROM tenants WHERE id = ?', [tenantId]);
+    return rows[0];
+  }
+
+  static async updateConfig(tenantId, newConfig) {
+    await pool.query('UPDATE tenants SET config = ? WHERE id = ?', [JSON.stringify(newConfig), tenantId]);
+    return true;
+  }
+}
+
+class ProductionStructureModel {
+  static async createStructure(structureData) {
+    const structureId = uuidv4();
+    const [result] = await pool.query(
+      'INSERT INTO production_structures (id, tenant_id, name, description, structure) VALUES (?, ?, ?, ?, ?)',
+      [structureId, structureData.tenant_id, structureData.name, structureData.description, JSON.stringify(structureData.structure)]
+    );
+    return { id: structureId, ...structureData };
+  }
+
+  static async getByTenant(tenantId) {
+    const [rows] = await pool.query('SELECT * FROM production_structures WHERE tenant_id = ?', [tenantId]);
+    return rows;
+  }
+
+  static async updateStructure(structureId, newStructure) {
+    await pool.query('UPDATE production_structures SET structure = ? WHERE id = ?', [JSON.stringify(newStructure), structureId]);
+    return true;
+  }
+}
+
+class WorkCenterModel {
+  static async create(workCenter) {
+    const workCenterId = uuidv4();
+    const [result] = await pool.query(
+      'INSERT INTO work_centers (id, tenant_id, name, description, capabilities, hourly_rate, setup_time) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [workCenterId, workCenter.tenant_id, workCenter.name, workCenter.description, JSON.stringify(workCenter.capabilities), workCenter.hourly_rate, workCenter.setup_time]
+    );
+    return { id: workCenterId, ...workCenter };
+  }
+
+  static async getByTenant(tenantId) {
+    const [rows] = await pool.query('SELECT * FROM work_centers WHERE tenant_id = ?', [tenantId]);
+    return rows;
+  }
+
+  static async update(workCenterId, workCenter) {
+    await pool.query(
+      'UPDATE work_centers SET name = ?, description = ?, capabilities = ?, hourly_rate = ?, setup_time = ? WHERE id = ?',
+      [workCenter.name, workCenter.description, JSON.stringify(workCenter.capabilities), workCenter.hourly_rate, workCenter.setup_time, workCenterId]
+    );
+    return { id: workCenterId, ...workCenter };
+  }
+
+  static async delete(workCenterId) {
+    await pool.query('DELETE FROM work_centers WHERE id = ?', [workCenterId]);
+    return true;
+  }
+}
+
+class OrderModel {
+  static async create(order) {
+    const orderId = uuidv4();
+    const [result] = await pool.query(
+      'INSERT INTO orders (id, tenant_id, name, work_center_id, start_date, end_date, status, priority, material_cost, labor_cost, created_by, dependencies) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [orderId, order.tenant_id, order.name, order.work_center_id, order.start_date, order.end_date, order.status, order.priority, order.material_cost, order.labor_cost, order.created_by, JSON.stringify(order.dependencies)]
+    );
+    return { id: orderId, ...order };
+  }
+
+  static async getByTenant(tenantId, role, userId) {
+    let query = `
+      SELECT o.*, wc.name AS work_center_name 
+      FROM orders o
+      LEFT JOIN work_centers wc ON o.work_center_id = wc.id
+      WHERE o.tenant_id = ?
+    `;
+    
+    // Для клиентов показываем только их заказы
+    if (role === 'client') {
+      query += ' AND o.created_by = ?';
+      const [rows] = await pool.query(query, [tenantId, userId]);
+      return rows;
+    }
+    
+    const [rows] = await pool.query(query, [tenantId]);
+    return rows;
+  }
+
+  static async update(orderId, order) {
+    await pool.query(
+      'UPDATE orders SET name = ?, work_center_id = ?, start_date = ?, end_date = ?, status = ?, priority = ?, material_cost = ?, labor_cost = ?, dependencies = ? WHERE id = ?',
+      [order.name, order.work_center_id, order.start_date, order.end_date, order.status, order.priority, order.material_cost, order.labor_cost, JSON.stringify(order.dependencies), orderId]
+    );
+    return { id: orderId, ...order };
+  }
+
+  static async delete(orderId) {
+    await pool.query('DELETE FROM orders WHERE id = ?', [orderId]);
+    return true;
+  }
+}
+
+class ReportModel {
+  static async generateProductionReport(tenantId, period) {
+    // Здесь должна быть сложная логика генерации отчетов
+    // Возвращаем заглушку для примера
+    return {
+      period,
+      total_orders: 42,
+      completed_orders: 35,
+      completion_rate: 83.3,
+      avg_completion_time: '5.2 дня',
+      equipment_utilization: 78.5,
+      labor_efficiency: 85.2
+    };
+  }
+}
+
+// ==================== HELPER FUNCTIONS ====================
+
+// Middleware аутентификации
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) return res.sendStatus(401);
+  
+  jwt.verify(token, process.env.JWT_SECRET || 'secret', (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+}
+
+// Middleware проверки ролей
+function checkRoles(roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  };
+}
+
+// ==================== API ENDPOINTS ====================
+
+// Аутентификация
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  
+  const user = await UserModel.findByUsername(username);
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  const validPassword = await bcrypt.compare(password, user.password);
+  if (!validPassword) {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
+
+  const token = jwt.sign(
+    { 
+      userId: user.id, 
+      username: user.username, 
+      role: user.role,
+      tenantId: user.tenant_id
+    }, 
+    process.env.JWT_SECRET || 'secret', 
+    { expiresIn: '24h' }
+  );
+  
+  res.json({ token });
+});
+
+// Управление пользователями (только для администраторов)
+app.get('/api/admin/users', authenticateToken, checkRoles(['admin']), async (req, res) => {
+  try {
+    const users = await UserModel.getUsersByTenant(req.user.tenantId);
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/users', authenticateToken, checkRoles(['admin']), async (req, res) => {
+  try {
+    const { username, password, role } = req.body;
+    const newUser = await UserModel.create({
+      username,
+      password,
+      role,
+      tenant_id: req.user.tenantId
+    });
+    res.status(201).json(newUser);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/admin/users/:userId/role', authenticateToken, checkRoles(['admin']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newRole } = req.body;
+    await UserModel.updateUserRole(userId, newRole);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Управление структурой производства (для администраторов и планировщиков)
+app.get('/api/production-structures', authenticateToken, checkRoles(['admin', 'planner', 'director-planner']), async (req, res) => {
+  try {
+    const structures = await ProductionStructureModel.getByTenant(req.user.tenantId);
+    res.json(structures);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/production-structures', authenticateToken, checkRoles(['admin', 'planner']), async (req, res) => {
+  try {
+    const { name, description, structure } = req.body;
+    const newStructure = await ProductionStructureModel.createStructure({
+      tenant_id: req.user.tenantId,
+      name,
+      description,
+      structure
+    });
+    res.status(201).json(newStructure);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Рабочие центры (участки)
+app.get('/api/work-centers', authenticateToken, checkRoles(['admin', 'planner', 'director', 'client', 'director-planner']), async (req, res) => {
+  try {
+    const workCenters = await WorkCenterModel.getByTenant(req.user.tenantId);
+    res.json(workCenters);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/work-centers', authenticateToken, checkRoles(['admin', 'planner']), async (req, res) => {
+  try {
+    const workCenter = req.body;
+    workCenter.tenant_id = req.user.tenantId;
+    const newWorkCenter = await WorkCenterModel.create(workCenter);
+    res.status(201).json(newWorkCenter);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/work-centers/:id', authenticateToken, checkRoles(['admin', 'planner']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const workCenter = req.body;
+    const updatedWorkCenter = await WorkCenterModel.update(id, workCenter);
+    res.json(updatedWorkCenter);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/work-centers/:id', authenticateToken, checkRoles(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await WorkCenterModel.delete(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Управление заказами
+app.get('/api/orders', authenticateToken, checkRoles(['admin', 'planner', 'director', 'client', 'director-planner']), async (req, res) => {
+  try {
+    const orders = await OrderModel.getByTenant(req.user.tenantId, req.user.role, req.user.userId);
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/orders', authenticateToken, checkRoles(['admin', 'planner', 'client', 'director-planner']), async (req, res) => {
+  try {
+    const order = req.body;
+    order.tenant_id = req.user.tenantId;
+    order.created_by = req.user.userId;
+    order.status = 'planned';
+    const newOrder = await OrderModel.create(order);
+    res.status(201).json(newOrder);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/orders/:id', authenticateToken, checkRoles(['admin', 'planner', 'director-planner']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = req.body;
+    const updatedOrder = await OrderModel.update(id, order);
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/orders/:id', authenticateToken, checkRoles(['admin', 'planner', 'director-planner']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    await OrderModel.delete(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Отчеты (для директоров и администраторов)
+app.get('/api/reports/production', authenticateToken, checkRoles(['admin', 'director', 'director-planner']), async (req, res) => {
+  try {
+    const period = req.query.period || 'month';
+    const report = await ReportModel.generateProductionReport(req.user.tenantId, period);
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// AI Integration Endpoints
+app.post('/api/ai/generate-structure', authenticateToken, checkRoles(['admin', 'planner']), async (req, res) => {
+  try {
+    const { description } = req.body;
+    
+    const prompt = `
+      На основе следующего описания производственной структуры создай формальную структуру в формате JSON:
+      "${description}"
+      
+      Структура должна включать:
+      - Названия рабочих центров (участков)
+      - Описание их возможностей
+      - Типичное время наладки
+      - Стоимость часа работы
+      
+      Верни только JSON без каких-либо пояснений.
+    `;
+    
+    const aiResponse = await openai.createChatCompletion({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1000
+    });
+    
+    const structure = JSON.parse(aiResponse.data.choices[0].message.content);
+    
+    // Сохраняем сгенерированную структуру
+    const savedStructure = await ProductionStructureModel.createStructure({
+      tenant_id: req.user.tenantId,
+      name: "AI Generated Structure",
+      description: description,
+      structure: structure
+    });
+    
+    res.json(savedStructure);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/ai/generate-order', authenticateToken, checkRoles(['admin', 'planner', 'client', 'director-planner']), async (req, res) => {
+  try {
+    const { description, structureId } = req.body;
+    
+    // Получаем структуру производства
+    const structure = await ProductionStructureModel.getById(structureId);
+    if (!structure || structure.tenant_id !== req.user.tenantId) {
+      return res.status(404).json({ error: 'Structure not found' });
+    }
+    
+    const prompt = `
+      На основе следующего описания производственного заказа и структуры производства создай формальное описание заказа в формате JSON:
+      Описание заказа: "${description}"
+      
+      Структура производства: ${JSON.stringify(structure.structure)}
+      
+      Заказ должен включать:
+      - Название заказа
+      - ID рабочего центра
+      - Предполагаемую дату начала и окончания
+      - Приоритет (high, medium, low)
+      - Затраты на материалы
+      - Трудозатраты в часах
+      
+      Верни только JSON без каких-либо пояснений.
+    `;
+    
+    const aiResponse = await openai.createChatCompletion({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1000
+    });
+    
+    const orderData = JSON.parse(aiResponse.data.choices[0].message.content);
+    orderData.tenant_id = req.user.tenantId;
+    orderData.created_by = req.user.userId;
+    
+    // Создаем заказ
+    const newOrder = await OrderModel.create(orderData);
+    
+    res.json(newOrder);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Запуск сервера
+app.listen(port, async () => {
+  console.log(`MES Server running on port ${port}`);
+  
+  // Инициализация базы данных
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        industry VARCHAR(100),
+        config JSON
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(36) PRIMARY KEY,
+        username VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        role ENUM('admin', 'planner', 'director', 'client', 'director-planner') NOT NULL,
+        tenant_id VARCHAR(36) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS production_structures (
+        id VARCHAR(36) PRIMARY KEY,
+        tenant_id VARCHAR(36) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        structure JSON NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS work_centers (
+        id VARCHAR(36) PRIMARY KEY,
+        tenant_id VARCHAR(36) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        capabilities JSON,
+        hourly_rate DECIMAL(10,2),
+        setup_time INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id VARCHAR(36) PRIMARY KEY,
+        tenant_id VARCHAR(36) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        work_center_id VARCHAR(36),
+        start_date DATE,
+        end_date DATE,
+        status ENUM('planned', 'in_progress', 'completed', 'canceled') DEFAULT 'planned',
+        priority ENUM('high', 'medium', 'low') DEFAULT 'medium',
+        material_cost DECIMAL(10,2) DEFAULT 0.00,
+        labor_cost DECIMAL(10,2) DEFAULT 0.00,
+        created_by VARCHAR(36) NOT NULL,
+        dependencies JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+        FOREIGN KEY (work_center_id) REFERENCES work_centers(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+      )
+    `);
+    
+    // Создаем демо-тенант, если не существует
+    const [tenants] = await pool.query('SELECT * FROM tenants LIMIT 1');
+    if (tenants.length === 0) {
+      const demoConfig = {
+        industry: 'engineering',
+        default_priority: 'medium',
+        currency: 'USD'
+      };
+      
+      const [tenantResult] = await pool.query(
+        'INSERT INTO tenants (id, name, industry, config) VALUES (?, ?, ?, ?)',
+        [uuidv4(), 'Demo Tenant', 'engineering', JSON.stringify(demoConfig)]
+      );
+      
+      const adminUser = {
+        id: uuidv4(),
+        username: 'admin',
+        password: await bcrypt.hash('admin123', saltRounds),
+        role: 'admin',
+        tenant_id: tenantResult.insertId
+      };
+      
+      await pool.query(
+        'INSERT INTO users (id, username, password, role, tenant_id) VALUES (?, ?, ?, ?, ?)',
+        [adminUser.id, adminUser.username, adminUser.password, adminUser.role, adminUser.tenant_id]
+      );
+    }
+    
+    console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('Database initialization failed:', error);
+  }
+});
