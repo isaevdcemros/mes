@@ -7,9 +7,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.min.js"></script>
   <style>
     /* Стили остаются без изменений */
-:root {
+    :root {
       --primary: #2c3e50;
       --primary-dark: #1a2530;
       --secondary: #3498db;
@@ -992,6 +993,54 @@
         font-size: 24px;
       }
     }
+    /* Добавим новые стили для редактора структур */
+    .structure-editor {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 20px;
+      border: 1px dashed #ced4da;
+    }
+    
+    .structure-node {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 10px;
+      margin: 10px 0;
+      cursor: move;
+    }
+    
+    .structure-node-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+    }
+    
+    .add-node-btn {
+      background: #e9ecef;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    
+    .gantt-container {
+      height: 500px;
+      overflow: auto;
+    }
+    
+    .gantt-grid-container {
+      height: 100%;
+    }
+    .gantt .bar-progress {
+      fill: #4caf50 !important;
+    }
+    
+    .gantt .bar-wrapper:hover {
+      fill: #2196f3 !important;
+    }
     /* ... (все CSS стили из предыдущей версии) ... */
   </style>
 </head>
@@ -1127,9 +1176,9 @@
           </div>
         </div>
       </div>
-      
+      <!-- Диаграмма Ганта -->
       <div class="col-3">
-        <!-- Диаграмма Ганта -->
+        
         <div class="card planner-view">
           <h2 class="card-title"><i class="fas fa-chart-gantt"></i> Диаграмма Ганта</h2>
           <div class="flex-row">
@@ -1175,6 +1224,51 @@
           </div>
         </div>
         
+        <div class="card admin-view">
+      <h2 class="card-title"><i class="fas fa-sitemap"></i> Производственные структуры</h2>
+      
+      <div class="form-group">
+        <label for="structureName">Название структуры</label>
+        <input type="text" id="structureName" class="form-control" placeholder="Введите название структуры" />
+      </div>
+      
+      <div class="form-group">
+        <label for="structureDescription">Описание</label>
+        <textarea id="structureDescription" class="form-control" placeholder="Опишите структуру производства"></textarea>
+      </div>
+      
+      <h4>Элементы структуры:</h4>
+      <div class="structure-editor" id="structureEditor">
+        <div class="structure-node">
+          <div class="structure-node-header">
+            <span>Участок 1</span>
+            <i class="fas fa-times delete-node"></i>
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control node-name" placeholder="Название участка" value="Фрезерный участок" />
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control node-capabilities" placeholder="Возможности" value="Фрезеровка, сверление" />
+          </div>
+        </div>
+      </div>
+      
+      <button class="add-node-btn" id="addNodeBtn">
+        <i class="fas fa-plus"></i> Добавить участок
+      </button>
+      
+      <div class="btn-group" style="margin-top: 20px;">
+        <button class="btn" id="saveStructureBtn">
+          <i class="fas fa-save"></i> Сохранить структуру
+        </button>
+        <button class="btn btn-outline" id="loadStructureBtn">
+          <i class="fas fa-folder-open"></i> Загрузить структуру
+        </button>
+      </div>
+    </div>
+
+
+
         <!-- Генерация заказов через ИИ -->
         <div class="ai-assistant planner-view">
           <h3><i class="fas fa-robot"></i> AI-ассистент для создания заказов</h3>
@@ -1340,7 +1434,7 @@
 
   <script>
     // Конфигурация API
-    const API_BASE_URL = '/api';
+    const API_BASE_URL = 'http://localhost:3000/api';
     let authToken = null;
     let currentUser = null;
 
@@ -1481,6 +1575,10 @@
         return this.call('/production-structures', 'POST', structure);
       },
 
+      async deleteProductionStructure(id) {
+        return this.call(`/production-structures/${id}`, 'DELETE');
+      },
+
       // Отчеты
       async getProductionReport(period = 'month') {
         return this.call(`/reports/production?period=${period}`);
@@ -1498,6 +1596,13 @@
 
     // Инициализация приложения
     document.addEventListener('DOMContentLoaded', async () => {
+
+      // Добавляем инициализацию библиотеки Ганта
+      if (typeof Gantt !== 'undefined') {
+        console.log('Gantt library loaded');
+      } else {
+        console.error('Gantt library not loaded');
+      }
       // DOM элементы
       const elements = {
         // Аутентификация
@@ -1559,6 +1664,8 @@
           localStorage.setItem('mesAuthToken', authToken);
           updateUserInfo();
           loadInitialData();
+          // Инициализация редактора структур
+          initStructureEditor();
         } catch (error) {
           showNotification(`Ошибка входа: ${error.message}`, 'error');
         }
@@ -1590,13 +1697,15 @@
           // Загрузка заказов
           const orders = await apiClient.getOrders();
           renderOrders(orders);
+          initGantt(orders);
           
           // Загрузка структур производства
           const structures = await apiClient.getProductionStructures();
           populateStructureSelect(structures);
+          renderStructures(structures);
           
           // Загрузка отчетов (для директора)
-          if ([ROLES.DIRECTOR, ROLES.DIRECTOR_PLANNER].includes(currentUser.role)) {
+          if ([ROLES.DIRECTOR, ROLES.DIRECTOR_PLANNER, ROLES.ADMIN].includes(currentUser.role)) {
             const report = await apiClient.getProductionReport();
             renderAnalytics(report);
           }
@@ -1639,6 +1748,119 @@
         html += '</div>';
         elements.workCentersList.innerHTML = html;
         
+
+        // Добавляем функцию для отображения списка структур
+    function renderStructures(structures) {
+      const structuresContainer = document.getElementById('structuresList');
+      if (!structuresContainer) return;
+      
+      structuresContainer.innerHTML = '';
+      
+      if (structures.length === 0) {
+        structuresContainer.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-sitemap"></i>
+            <h3>Нет производственных структур</h3>
+            <p>Создайте структуры для вашего производства</p>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = '<h3>Сохраненные структуры</h3><div class="structures-container">';
+      
+      structures.forEach(structure => {
+        html += `
+          <div class="structure-item">
+            <div class="structure-info">
+              <h4>${structure.name}</h4>
+              <p>${structure.description || 'Без описания'}</p>
+              <div class="structure-preview">
+                ${structure.structure.nodes.map(node => `
+                  <div class="node-preview">
+                    <i class="fas fa-cog"></i> ${node.name}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <div class="structure-actions">
+              <button class="btn btn-sm btn-outline load-structure" data-id="${structure.id}">
+                <i class="fas fa-edit"></i> Редактировать
+              </button>
+              <button class="btn btn-sm btn-danger delete-structure" data-id="${structure.id}">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      
+      html += '</div>';
+      structuresContainer.innerHTML = html;
+      
+      // Обработчики для кнопок
+      document.querySelectorAll('.load-structure').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const structureId = btn.dataset.id;
+          try {
+            const structure = structures.find(s => s.id === structureId);
+            if (!structure) return;
+            
+            document.getElementById('structureName').value = structure.name;
+            document.getElementById('structureDescription').value = structure.description || '';
+            
+            // Очищаем текущие узлы
+            const structureEditor = document.getElementById('structureEditor');
+            structureEditor.innerHTML = '';
+            
+            // Добавляем узлы из структуры
+            structure.structure.nodes.forEach(node => {
+              const newNode = document.createElement('div');
+              newNode.className = 'structure-node';
+              newNode.innerHTML = `
+                <div class="structure-node-header">
+                  <span>Участок</span>
+                  <i class="fas fa-times delete-node"></i>
+                </div>
+                <div class="form-group">
+                  <input type="text" class="form-control node-name" placeholder="Название участка" value="${node.name}" />
+                </div>
+                <div class="form-group">
+                  <input type="text" class="form-control node-capabilities" placeholder="Возможности" value="${node.capabilities}" />
+                </div>
+              `;
+              structureEditor.appendChild(newNode);
+              
+              // Обработчик удаления узла
+              newNode.querySelector('.delete-node').addEventListener('click', () => {
+                newNode.remove();
+              });
+            });
+            
+            showNotification('Структура загружена в редактор', 'success');
+          } catch (error) {
+            showNotification(`Ошибка загрузки структуры: ${error.message}`, 'error');
+          }
+        });
+      });
+      
+      document.querySelectorAll('.delete-structure').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const structureId = btn.dataset.id;
+          if (confirm('Вы уверены, что хотите удалить эту производственную структуру?')) {
+            try {
+              await apiClient.deleteProductionStructure(structureId);
+              showNotification('Структура удалена', 'success');
+              loadInitialData();
+            } catch (error) {
+              showNotification(`Ошибка удаления: ${error.message}`, 'error');
+            }
+          }
+        });
+      });
+    }
+
+
         // Обработчики удаления
         document.querySelectorAll('.del-eq').forEach(btn => {
           btn.addEventListener('click', async (e) => {
@@ -1897,6 +2119,234 @@
           select.appendChild(option);
         });
       }
+
+
+      // Инициализация библиотеки для диаграммы Ганта
+    function initGantt(orders) {
+      const ganttContainer = document.getElementById('gantt');
+      ganttContainer.innerHTML = '';
+      
+      if (orders.length === 0) {
+        ganttContainer.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-chart-line"></i>
+            <h3>Нет данных для отображения</h3>
+            <p>Добавьте участки и заказы для построения диаграммы</p>
+          </div>
+        `;
+        return;
+      }
+      // Проверяем, что библиотека загружена
+      if (typeof Gantt === 'undefined') {
+        console.error('Gantt library is not available');
+        ganttContainer.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Ошибка загрузки библиотеки</h3>
+            <p>Не удалось загрузить библиотеку диаграмм Ганта</p>
+          </div>
+        `;
+        return;
+      }
+      // Создаем контейнер для диаграммы
+      const ganttElement = document.createElement('div');
+      ganttElement.className = 'gantt-container';
+      ganttContainer.appendChild(ganttElement);
+      
+      // Подготовка данных для Ганта
+      const tasks = orders.map(order => {
+        // Рассчитываем процент выполнения
+        const now = new Date();
+        const start = new Date(order.start_date);
+        const end = new Date(order.end_date);
+        const total = end - start;
+        const progress = total > 0 ? Math.min(100, Math.max(0, Math.round(((now - start) / total) * 100))) : 0;
+        
+        return {
+          id: order.id,
+          name: order.name,
+          start: order.start_date,
+          end: order.end_date,
+          progress: progress,
+          dependencies: order.dependencies ? order.dependencies.join(',') : '',
+          work_center: order.work_center_name
+        };
+      });
+      
+      // Создаем диаграмму Ганта
+      const gantt = new Gantt(ganttElement, tasks, {
+        header_height: 50,
+        column_width: 30,
+        step: 24,
+        view_modes: ['Quarter Day', 'Half Day', 'Day', 'Week', 'Month'],
+        bar_height: 20,
+        bar_corner_radius: 3,
+        arrow_curve: 5,
+        padding: 18,
+        view_mode: 'Week',
+        date_format: 'YYYY-MM-DD',
+        custom_popup_html: function(task) {
+          return `
+            <div class="gantt-popup">
+              <h5>${task.name}</h5>
+              <p>Участок: ${task.work_center || 'Не назначен'}</p>
+              <p>Начало: ${formatDate(task.start)}</p>
+              <p>Окончание: ${formatDate(task.end)}</p>
+              <p>Прогресс: ${task.progress}%</p>
+            </div>
+          `;
+        }
+      });
+    }
+
+    // Форматирование даты для Ганта
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ru-RU');
+    }
+
+    // Функция для работы с производственными структурами
+    function initStructureEditor() {
+      const structureEditor = document.getElementById('structureEditor');
+      const addNodeBtn = document.getElementById('addNodeBtn');
+      const saveStructureBtn = document.getElementById('saveStructureBtn');
+      const loadStructureBtn = document.getElementById('loadStructureBtn');
+      
+      // Добавление нового узла структуры
+      addNodeBtn.addEventListener('click', () => {
+        const newNode = document.createElement('div');
+        newNode.className = 'structure-node';
+        newNode.innerHTML = `
+          <div class="structure-node-header">
+            <span>Новый участок</span>
+            <i class="fas fa-times delete-node"></i>
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control node-name" placeholder="Название участка" />
+          </div>
+          <div class="form-group">
+            <input type="text" class="form-control node-capabilities" placeholder="Возможности" />
+          </div>
+        `;
+        structureEditor.appendChild(newNode);
+        
+        // Обработчик удаления узла
+        newNode.querySelector('.delete-node').addEventListener('click', () => {
+          newNode.remove();
+        });
+      });
+      
+      // Обработчики для существующих кнопок удаления
+      document.querySelectorAll('.delete-node').forEach(btn => {
+        btn.addEventListener('click', function() {
+          this.closest('.structure-node').remove();
+        });
+      });
+      
+      // Сохранение структуры
+      saveStructureBtn.addEventListener('click', async () => {
+        const structureName = document.getElementById('structureName').value;
+        const structureDescription = document.getElementById('structureDescription').value;
+        
+        if (!structureName) {
+          showNotification('Введите название структуры', 'error');
+          return;
+        }
+        
+        const nodes = Array.from(document.querySelectorAll('.structure-node')).map(node => {
+          return {
+            name: node.querySelector('.node-name').value,
+            capabilities: node.querySelector('.node-capabilities').value
+          };
+        });
+        
+        if (nodes.length === 0) {
+          showNotification('Добавьте хотя бы один участок', 'error');
+          return;
+        }
+        
+        try {
+          const structure = {
+            name: structureName,
+            description: structureDescription,
+            structure: {
+              nodes: nodes
+            }
+          };
+          
+          const result = await apiClient.createProductionStructure(structure);
+          showNotification('Структура сохранена успешно', 'success');
+          loadInitialData();
+        } catch (error) {
+          showNotification(`Ошибка сохранения: ${error.message}`, 'error');
+        }
+      });
+      
+      // Загрузка структуры
+      loadStructureBtn.addEventListener('click', async () => {
+        try {
+          const structures = await apiClient.getProductionStructures();
+          if (structures.length === 0) {
+            showNotification('Нет сохраненных структур', 'info');
+            return;
+          }
+          
+          // Простой выбор первой структуры (в реальном приложении сделали бы выбор)
+          const structure = structures[0];
+          
+          document.getElementById('structureName').value = structure.name;
+          document.getElementById('structureDescription').value = structure.description || '';
+          
+          // Очищаем текущие узлы
+          structureEditor.innerHTML = '';
+          
+          // Добавляем узлы из структуры
+          structure.structure.nodes.forEach(node => {
+            const newNode = document.createElement('div');
+            newNode.className = 'structure-node';
+            newNode.innerHTML = `
+              <div class="structure-node-header">
+                <span>Участок</span>
+                <i class="fas fa-times delete-node"></i>
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control node-name" placeholder="Название участка" value="${node.name}" />
+              </div>
+              <div class="form-group">
+                <input type="text" class="form-control node-capabilities" placeholder="Возможности" value="${node.capabilities}" />
+              </div>
+            `;
+            structureEditor.appendChild(newNode);
+            
+            // Обработчик удаления узла
+            newNode.querySelector('.delete-node').addEventListener('click', () => {
+              newNode.remove();
+            });
+          });
+          
+          showNotification('Структура загружена', 'success');
+        } catch (error) {
+          showNotification(`Ошибка загрузки: ${error.message}`, 'error');
+        }
+      });
+    }
+
+    // В функции loadInitialData добавляем вызов для инициализации Ганта:
+    async function loadInitialData() {
+      try {
+        // ... (существующий код) ...
+        
+        // Загрузка заказов
+        const orders = await apiClient.getOrders();
+        renderOrders(orders);
+        initGantt(orders); // Инициализируем диаграмму Ганта
+        
+        // ... (остальной код) ...
+      } catch (error) {
+        showNotification(`Ошибка загрузки данных: ${error.message}`, 'error');
+      }
+    }
+
 
       // Обработчики событий
       elements.addWorkCenterForm.addEventListener('submit', async (e) => {
