@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MES Pro - Управление производством</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.0/dist/frappe-gantt.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Стили остаются без изменений */
+    /* ... (все CSS стили из предыдущей версии) ... */
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <h1><i class="fas fa-industry"></i> MES Pro - Управление производством</h1>
+        <p class="subtitle">Система планирования и контроля производственных процессов</p>
+        
+        <div class="header-stats">
+          <div class="stat-item">
+            <i class="fas fa-tasks"></i> Заказы: <span class="stat-value" id="totalOrders">0</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-cogs"></i> Участки: <span class="stat-value" id="totalWorkCenters">0</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-chart-line"></i> Загрузка: <span class="stat-value" id="avgLoad">0%</span>
+          </div>
+          <div class="stat-item">
+            <i class="fas fa-money-bill-wave"></i> Эффективность: <span class="stat-value" id="efficiency">0%</span>
+          </div>
+        </div>
+      </div>
+      <div class="user-info">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div>
+          <div id="userName">Загрузка...</div>
+          <div id="userRole">Роль: Загрузка...</div>
+        </div>
+      </div>
+    </header>
+    
+    <div class="role-selector">
+      <button class="role-btn active" data-role="admin">Администратор</button>
+      <button class="role-btn" data-role="planner">Планировщик</button>
+      <button class="role-btn" data-role="director">Директор</button>
+      <button class="role-btn" data-role="client">Клиент</button>
+      <button class="role-btn" data-role="director-planner">Директор+Планировщик</button>
+    </div>
+    
+    <div class="flex-row">
+      <div class="col">
+        <!-- Управление рабочими центрами -->
+        <div class="card admin-view">
+          <h2 class="card-title"><i class="fas fa-cogs"></i> Управление рабочими центрами</h2>
+          <form id="addWorkCenterForm">
+            <div class="form-group">
+              <label for="newWorkCenterName">Название участка</label>
+              <input type="text" id="newWorkCenterName" class="form-control" placeholder="Введите название участка" required />
+            </div>
+            
+            <div class="form-group">
+              <label for="workCenterDescription">Описание</label>
+              <textarea id="workCenterDescription" class="form-control" placeholder="Описание возможностей участка"></textarea>
+            </div>
+            
+            <div class="flex-row">
+              <div class="col">
+                <div class="form-group">
+                  <label for="hourlyRate">Стоимость часа ($)</label>
+                  <input type="number" id="hourlyRate" class="form-control" min="0" step="0.1" value="50" required />
+                </div>
+              </div>
+              <div class="col">
+                <div class="form-group">
+                  <label for="setupTime">Время переналадки (ч)</label>
+                  <input type="number" id="setupTime" class="form-control" min="0" value="2" required />
+                </div>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn"><i class="fas fa-plus"></i> Добавить участок</button>
+          </form>
+          
+          <div class="ai-assistant admin-view">
+            <h3><i class="fas fa-robot"></i> AI-ассистент для создания структуры</h3>
+            <p>Опишите структуру вашего производства:</p>
+            <textarea id="aiStructureInput" placeholder="Пример: У меня есть три участка: фрезерный с двумя станками, токарный с тремя станками и участок сборки. Также есть склад материалов."></textarea>
+            <button class="btn btn-success" id="aiGenerateStructureBtn">
+              <i class="fas fa-magic"></i> Создать структуру
+            </button>
+            <div class="ai-response" id="aiStructureResponse">
+              Результат генерации структуры появится здесь...
+            </div>
+          </div>
+          
+          <div class="work-centers-list" id="workCentersList"></div>
+        </div>
+        
+        <!-- Управление пользователями -->
+        <div class="card admin-view">
+          <h2 class="card-title"><i class="fas fa-users"></i> Управление пользователями</h2>
+          <div class="form-group">
+            <label for="userNameInput">Имя пользователя</label>
+            <input type="text" id="userNameInput" class="form-control" placeholder="Введите имя пользователя" />
+          </div>
+          <div class="form-group">
+            <label for="userPassword">Пароль</label>
+            <input type="password" id="userPassword" class="form-control" placeholder="Введите пароль" />
+          </div>
+          <div class="form-group">
+            <label for="userRoleSelect">Роль</label>
+            <select id="userRoleSelect" class="form-control">
+              <option value="admin">Администратор</option>
+              <option value="planner">Планировщик</option>
+              <option value="director">Директор</option>
+              <option value="client">Клиент</option>
+              <option value="director-planner">Директор+Планировщик</option>
+            </select>
+          </div>
+          <button class="btn" id="addUserBtn">
+            <i class="fas fa-user-plus"></i> Добавить пользователя
+          </button>
+          
+          <div class="users-list" id="usersList" style="margin-top: 20px;"></div>
+        </div>
+        
+        <!-- Список заказов -->
+        <div class="card planner-view">
+          <h2 class="card-title"><i class="fas fa-tasks"></i> Список заказов</h2>
+          <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchOrders" class="form-control" placeholder="Поиск заказов..." />
+          </div>
+          <div id="ordersList">
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>Нет заказов</h3>
+              <p>Добавьте заказы для отображения в списке</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-3">
+        <!-- Диаграмма Ганта -->
+        <div class="card planner-view">
+          <h2 class="card-title"><i class="fas fa-chart-gantt"></i> Диаграмма Ганта</h2>
+          <div class="flex-row">
+            <div class="col">
+              <div class="form-group">
+                <label for="timeScale">Масштаб времени</label>
+                <select id="timeScale" class="form-control">
+                  <option value="day">День</option>
+                  <option value="week" selected>Неделя</option>
+                  <option value="month">Месяц</option>
+                  <option value="quarter">Квартал</option>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="viewMode">Режим отображения</label>
+                <select id="viewMode" class="form-control">
+                  <option value="all">Все участки</option>
+                  <option value="current" selected>Текущий участок</option>
+                  <option value="critical">Критический путь</option>
+                </select>
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="priorityFilter">Приоритет</label>
+                <select id="priorityFilter" class="form-control">
+                  <option value="all">Все</option>
+                  <option value="high">Высокий</option>
+                  <option value="medium">Средний</option>
+                  <option value="low">Низкий</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div id="gantt">
+            <div class="empty-state">
+              <i class="fas fa-chart-line"></i>
+              <h3>Нет данных для отображения</h3>
+              <p>Добавьте участки и заказы для построения диаграммы</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Генерация заказов через ИИ -->
+        <div class="ai-assistant planner-view">
+          <h3><i class="fas fa-robot"></i> AI-ассистент для создания заказов</h3>
+          <p>Опишите производственный заказ:</p>
+          <textarea id="aiOrderInput" placeholder="Пример: Нужно изготовить 100 деталей корпуса. Фрезеровка займет 2 дня на фрезерном участке, затем сверление 1 день. После этого сборка 3 дня."></textarea>
+          
+          <div class="form-group">
+            <label for="structureSelect">Производственная структура</label>
+            <select id="structureSelect" class="form-control"></select>
+          </div>
+          
+          <button class="btn btn-success" id="aiGenerateOrderBtn">
+            <i class="fas fa-magic"></i> Создать заказ
+          </button>
+          <div class="ai-response" id="aiOrderResponse">
+            Результат генерации заказа появится здесь...
+          </div>
+        </div>
+        
+        <!-- Редактор заказов -->
+        <div class="flex-row">
+          <div class="col-2">
+            <div class="card planner-view">
+              <h2 class="card-title"><i class="fas fa-edit"></i> Редактор заказов</h2>
+              <form id="orderForm">
+                <input type="hidden" id="orderId" />
+                <div class="form-group">
+                  <label for="orderName">Название заказа</label>
+                  <input type="text" id="orderName" class="form-control" placeholder="Введите название заказа" required />
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="workCenterSelect">Рабочий центр</label>
+                      <select id="workCenterSelect" class="form-control" required></select>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="orderPriority">Приоритет</label>
+                      <select id="orderPriority" class="form-control">
+                        <option value="high">Высокий</option>
+                        <option value="medium" selected>Средний</option>
+                        <option value="low">Низкий</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="startDate">Дата начала</label>
+                      <input type="date" id="startDate" class="form-control" required />
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="endDate">Дата окончания</label>
+                      <input type="date" id="endDate" class="form-control" required />
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="flex-row">
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="materialCost">Стоимость материалов ($)</label>
+                      <input type="number" id="materialCost" class="form-control" min="0" step="0.01" value="0" />
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="form-group">
+                      <label for="laborCost">Трудозатраты (ч)</label>
+                      <input type="number" id="laborCost" class="form-control" min="0" step="0.5" value="0" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label for="dependencySelect">Зависимость</label>
+                  <select id="dependencySelect" class="form-control">
+                    <option value="">Нет зависимости</option>
+                  </select>
+                  <span class="dependency-indicator">Выберите заказ, который должен завершиться до начала этого</span>
+                </div>
+                
+                <div class="checkbox-group">
+                  <input type="checkbox" id="autoAssign" />
+                  <label for="autoAssign">Авто-распределение по участку с минимальной загрузкой</label>
+                </div>
+                
+                <div class="btn-group">
+                  <button type="submit" id="saveOrderBtn" class="btn"><i class="fas fa-save"></i> Добавить заказ</button>
+                  <button type="button" id="cancelEditBtn" class="btn btn-outline" style="display:none;"><i class="fas fa-times"></i> Отмена</button>
+                  <button type="button" id="calculateCostBtn" class="btn btn-info"><i class="fas fa-calculator"></i> Рассчитать стоимость</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          
+          <div class="col">
+            <div class="card">
+              <h2 class="card-title"><i class="fas fa-file-export"></i> Экспорт / Импорт</h2>
+              <div class="btn-group">
+                <button id="exportBtn" class="btn btn-success"><i class="fas fa-download"></i> Экспортировать данные</button>
+                <button id="importBtn" class="btn"><i class="fas fa-upload"></i> Импортировать данные</button>
+                <button id="copyBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Копировать</button>
+              </div>
+              <textarea id="importExportArea" class="import-export-area" placeholder="Вставьте сюда JSON для импорта или получите экспортированные данные"></textarea>
+            </div>
+            
+            <div class="api-section">
+              <h3><i class="fas fa-code"></i> API интеграция</h3>
+              <div class="form-group">
+                <label for="apiEndpoint">API Endpoint</label>
+                <input type="text" id="apiEndpoint" class="form-control" value="/api" readonly>
+              </div>
+              <div class="form-group">
+                <label for="apiKey">API Key</label>
+                <input type="text" id="apiKey" class="form-control" value="Ваш API ключ" readonly>
+              </div>
+              <button class="btn" id="syncApiBtn">
+                <i class="fas fa-sync-alt"></i> Синхронизировать
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Отчеты -->
+    <div class="analytics-section director-view">
+      <div class="analytics-header">
+        <h3><i class="fas fa-chart-pie"></i> Аналитика производства</h3>
+        <select id="analyticsPeriod" class="priority-select">
+          <option value="week">Неделя</option>
+          <option value="month" selected>Месяц</option>
+          <option value="quarter">Квартал</option>
+          <option value="year">Год</option>
+        </select>
+      </div>
+      
+      <div class="dashboard-stats" id="analyticsStats">
+        <!-- Статистика будет загружена динамически -->
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-placeholder">
+          <i class="fas fa-chart-bar"></i>
+          <h4>Графики загрузки и эффективности</h4>
+          <p>Данные будут отображены после начала работы</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="notification" id="notification">
+    <i class="fas fa-check-circle"></i>
+    <div class="notification-content"></div>
+  </div>
+
+  <script>
+    // Конфигурация API
+    const API_BASE_URL = '/api';
+    let authToken = null;
+    let currentUser = null;
+
+    // Конфигурация ролей
+    const ROLES = {
+      ADMIN: 'admin',
+      PLANNER: 'planner',
+      DIRECTOR: 'director',
+      CLIENT: 'client',
+      DIRECTOR_PLANNER: 'director-planner'
+    };
+    
+    // Права доступа
+    const PERMISSIONS = {
+      [ROLES.ADMIN]: ['manage_work_centers', 'manage_users', 'view_all', 'edit_all', 'ai_structure', 'ai_orders'],
+      [ROLES.PLANNER]: ['create_orders', 'edit_orders', 'view_orders', 'view_gantt', 'ai_orders'],
+      [ROLES.DIRECTOR]: ['view_reports', 'view_analytics'],
+      [ROLES.CLIENT]: ['create_orders', 'view_own_orders'],
+      [ROLES.DIRECTOR_PLANNER]: ['create_orders', 'edit_orders', 'view_orders', 'view_gantt', 'view_reports', 'ai_orders']
+    };
+
+    // API клиент
+    const apiClient = {
+      // Вызов API с авторизацией
+      async call(endpoint, method = 'GET', body = null) {
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        };
+
+        const config = {
+          method,
+          headers
+        };
+
+        if (body) {
+          config.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Ошибка сервера');
+        }
+
+        return data;
+      },
+
+      // Аутентификация
+      async login(username, password) {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Ошибка аутентификации');
+        }
+
+        authToken = data.token;
+        return this.getCurrentUser();
+      },
+
+      // Получение текущего пользователя
+      async getCurrentUser() {
+        if (!authToken) return null;
+        
+        // Декодируем токен для получения информации о пользователе
+        const payload = JSON.parse(atob(authToken.split('.')[1]));
+        currentUser = {
+          id: payload.userId,
+          username: payload.username,
+          role: payload.role,
+          tenantId: payload.tenantId
+        };
+        
+        return currentUser;
+      },
+
+      // Рабочие центры
+      async getWorkCenters() {
+        return this.call('/work-centers');
+      },
+
+      async createWorkCenter(workCenter) {
+        return this.call('/work-centers', 'POST', workCenter);
+      },
+
+      async updateWorkCenter(id, workCenter) {
+        return this.call(`/work-centers/${id}`, 'PUT', workCenter);
+      },
+
+      async deleteWorkCenter(id) {
+        return this.call(`/work-centers/${id}`, 'DELETE');
+      },
+
+      // Пользователи (для администраторов)
+      async getUsers() {
+        return this.call('/admin/users');
+      },
+
+      async createUser(user) {
+        return this.call('/admin/users', 'POST', user);
+      },
+
+      async updateUserRole(userId, newRole) {
+        return this.call(`/admin/users/${userId}/role`, 'PUT', { newRole });
+      },
+
+      // Заказы
+      async getOrders() {
+        return this.call('/orders');
+      },
+
+      async createOrder(order) {
+        return this.call('/orders', 'POST', order);
+      },
+
+      async updateOrder(id, order) {
+        return this.call(`/orders/${id}`, 'PUT', order);
+      },
+
+      async deleteOrder(id) {
+        return this.call(`/orders/${id}`, 'DELETE');
+      },
+
+      // Структуры производства
+      async getProductionStructures() {
+        return this.call('/production-structures');
+      },
+
+      async createProductionStructure(structure) {
+        return this.call('/production-structures', 'POST', structure);
+      },
+
+      // Отчеты
+      async getProductionReport(period = 'month') {
+        return this.call(`/reports/production?period=${period}`);
+      },
+
+      // AI интеграция
+      async generateStructureFromAI(description) {
+        return this.call('/ai/generate-structure', 'POST', { description });
+      },
+
+      async generateOrderFromAI(description, structureId) {
+        return this.call('/ai/generate-order', 'POST', { description, structureId });
+      }
+    };
+
+    // Инициализация приложения
+    document.addEventListener('DOMContentLoaded', async () => {
+      // DOM элементы
+      const elements = {
+        // Аутентификация
+        userName: document.getElementById('userName'),
+        userRole: document.getElementById('userRole'),
+        userAvatar: document.getElementById('userAvatar'),
+        
+        // Рабочие центры
+        addWorkCenterForm: document.getElementById('addWorkCenterForm'),
+        workCentersList: document.getElementById('workCentersList'),
+        workCenterSelect: document.getElementById('workCenterSelect'),
+        
+        // Пользователи
+        addUserBtn: document.getElementById('addUserBtn'),
+        usersList: document.getElementById('usersList'),
+        
+        // Заказы
+        ordersList: document.getElementById('ordersList'),
+        orderForm: document.getElementById('orderForm'),
+        saveOrderBtn: document.getElementById('saveOrderBtn'),
+        dependencySelect: document.getElementById('dependencySelect'),
+        
+        // AI
+        aiGenerateStructureBtn: document.getElementById('aiGenerateStructureBtn'),
+        aiStructureInput: document.getElementById('aiStructureInput'),
+        aiStructureResponse: document.getElementById('aiStructureResponse'),
+        aiGenerateOrderBtn: document.getElementById('aiGenerateOrderBtn'),
+        aiOrderInput: document.getElementById('aiOrderInput'),
+        aiOrderResponse: document.getElementById('aiOrderResponse'),
+        structureSelect: document.getElementById('structureSelect'),
+        
+        // Отчеты
+        analyticsStats: document.getElementById('analyticsStats'),
+        
+        // Роли
+        roleButtons: document.querySelectorAll('.role-btn'),
+        
+        // Уведомления
+        notification: document.getElementById('notification')
+      };
+
+      // Инициализация данных
+      async function init() {
+        // Проверяем, есть ли сохраненный токен
+        const savedToken = localStorage.getItem('mesAuthToken');
+        if (savedToken) {
+          authToken = savedToken;
+          currentUser = await apiClient.getCurrentUser();
+          if (currentUser) {
+            updateUserInfo();
+            loadInitialData();
+            return;
+          }
+        }
+        
+        // Демо-вход (в реальном приложении будет форма входа)
+        try {
+          await apiClient.login('admin', 'admin123');
+          localStorage.setItem('mesAuthToken', authToken);
+          updateUserInfo();
+          loadInitialData();
+        } catch (error) {
+          showNotification(`Ошибка входа: ${error.message}`, 'error');
+        }
+      }
+
+      // Обновление информации о пользователе
+      function updateUserInfo() {
+        if (!currentUser) return;
+        
+        elements.userName.textContent = currentUser.username;
+        elements.userRole.textContent = `Роль: ${getRoleName(currentUser.role)}`;
+        elements.userAvatar.textContent = currentUser.username.charAt(0).toUpperCase();
+      }
+
+      // Загрузка начальных данных
+      async function loadInitialData() {
+        try {
+          // Загрузка рабочих центров
+          const workCenters = await apiClient.getWorkCenters();
+          renderWorkCenters(workCenters);
+          populateWorkCenterSelect(workCenters);
+          
+          // Загрузка пользователей (для администратора)
+          if (currentUser.role === ROLES.ADMIN) {
+            const users = await apiClient.getUsers();
+            renderUsers(users);
+          }
+          
+          // Загрузка заказов
+          const orders = await apiClient.getOrders();
+          renderOrders(orders);
+          
+          // Загрузка структур производства
+          const structures = await apiClient.getProductionStructures();
+          populateStructureSelect(structures);
+          
+          // Загрузка отчетов (для директора)
+          if ([ROLES.DIRECTOR, ROLES.DIRECTOR_PLANNER].includes(currentUser.role)) {
+            const report = await apiClient.getProductionReport();
+            renderAnalytics(report);
+          }
+          
+          // Обновление статистики
+          updateStats(orders.length, workCenters.length);
+          
+        } catch (error) {
+          showNotification(`Ошибка загрузки данных: ${error.message}`, 'error');
+        }
+      }
+
+      // Рендер рабочих центров
+      function renderWorkCenters(workCenters) {
+        elements.workCentersList.innerHTML = '';
+        
+        if (workCenters.length === 0) {
+          elements.workCentersList.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-cogs"></i>
+              <h3>Нет рабочих центров</h3>
+              <p>Добавьте рабочие центры для начала работы</p>
+            </div>
+          `;
+          return;
+        }
+        
+        let html = '<h3>Список рабочих центров</h3><div class="equipment-tabs">';
+        
+        workCenters.forEach(wc => {
+          html += `
+            <div class="tab-btn" data-id="${wc.id}">
+              <i class="fas fa-cog"></i> ${wc.name}
+              <span class="badge">${wc.hourly_rate}$/час</span>
+              <span class="del-eq" data-id="${wc.id}"><i class="fas fa-times"></i></span>
+            </div>
+          `;
+        });
+        
+        html += '</div>';
+        elements.workCentersList.innerHTML = html;
+        
+        // Обработчики удаления
+        document.querySelectorAll('.del-eq').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const workCenterId = btn.dataset.id;
+            if (confirm('Вы уверены, что хотите удалить этот рабочий центр?')) {
+              try {
+                await apiClient.deleteWorkCenter(workCenterId);
+                showNotification('Рабочий центр удален', 'success');
+                loadInitialData();
+              } catch (error) {
+                showNotification(`Ошибка удаления: ${error.message}`, 'error');
+              }
+            }
+          });
+        });
+      }
+
+      // Рендер пользователей
+      function renderUsers(users) {
+        elements.usersList.innerHTML = '';
+        
+        if (users.length === 0) {
+          elements.usersList.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-users"></i>
+              <h3>Нет пользователей</h3>
+              <p>Добавьте пользователей для доступа к системе</p>
+            </div>
+          `;
+          return;
+        }
+        
+        let html = '<h3>Список пользователей</h3><div class="users-container">';
+        
+        users.forEach(user => {
+          html += `
+            <div class="user-item">
+              <div class="user-info">
+                <span class="user-avatar">${user.username.charAt(0)}</span>
+                <div>
+                  <strong>${user.username}</strong>
+                  <div>Роль: ${getRoleName(user.role)}</div>
+                </div>
+              </div>
+              <select class="user-role-select" data-id="${user.id}">
+                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Администратор</option>
+                <option value="planner" ${user.role === 'planner' ? 'selected' : ''}>Планировщик</option>
+                <option value="director" ${user.role === 'director' ? 'selected' : ''}>Директор</option>
+                <option value="client" ${user.role === 'client' ? 'selected' : ''}>Клиент</option>
+                <option value="director-planner" ${user.role === 'director-planner' ? 'selected' : ''}>Директор+Планировщик</option>
+              </select>
+            </div>
+          `;
+        });
+        
+        html += '</div>';
+        elements.usersList.innerHTML = html;
+        
+        // Обработчики изменения ролей
+        document.querySelectorAll('.user-role-select').forEach(select => {
+          select.addEventListener('change', async () => {
+            const userId = select.dataset.id;
+            const newRole = select.value;
+            
+            try {
+              await apiClient.updateUserRole(userId, newRole);
+              showNotification('Роль пользователя обновлена', 'success');
+            } catch (error) {
+              showNotification(`Ошибка обновления роли: ${error.message}`, 'error');
+            }
+          });
+        });
+      }
+
+      // Рендер заказов
+      function renderOrders(orders) {
+        const ordersContainer = elements.ordersList;
+        ordersContainer.innerHTML = '';
+        
+        if (orders.length === 0) {
+          ordersContainer.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>Нет заказов</h3>
+              <p>Добавьте заказы для отображения в списке</p>
+            </div>
+          `;
+          return;
+        }
+        
+        orders.forEach(order => {
+          const orderEl = document.createElement('div');
+          orderEl.className = 'order-item';
+          orderEl.dataset.id = order.id;
+          
+          orderEl.innerHTML = `
+            <div class="order-info">
+              <div class="order-name">${order.name}</div>
+              <div class="order-dates">
+                <span>Начало: ${new Date(order.start_date).toLocaleDateString()}</span>
+                <span>Окончание: ${new Date(order.end_date).toLocaleDateString()}</span>
+              </div>
+              <div class="order-cost">Стоимость: ${order.material_cost + order.labor_cost}$</div>
+            </div>
+            <div class="order-progress ${order.priority}">${getPriorityName(order.priority)}</div>
+            <div class="order-actions">
+              <button class="action-btn edit-order" data-id="${order.id}"><i class="fas fa-edit"></i></button>
+              <button class="action-btn delete-order" data-id="${order.id}"><i class="fas fa-trash"></i></button>
+            </div>
+          `;
+          
+          ordersContainer.appendChild(orderEl);
+        });
+        
+        // Обработчики действий
+        document.querySelectorAll('.edit-order').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const orderId = btn.dataset.id;
+            try {
+              const order = orders.find(o => o.id === orderId);
+              if (order) {
+                fillOrderForm(order);
+              }
+            } catch (error) {
+              showNotification(`Ошибка загрузки заказа: ${error.message}`, 'error');
+            }
+          });
+        });
+        
+        document.querySelectorAll('.delete-order').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const orderId = btn.dataset.id;
+            if (confirm('Вы уверены, что хотите удалить этот заказ?')) {
+              try {
+                await apiClient.deleteOrder(orderId);
+                showNotification('Заказ удален', 'success');
+                loadInitialData();
+              } catch (error) {
+                showNotification(`Ошибка удаления: ${error.message}`, 'error');
+              }
+            }
+          });
+        });
+      }
+
+      // Рендер аналитики
+      function renderAnalytics(report) {
+        elements.analyticsStats.innerHTML = `
+          <div class="stat-card">
+            <i class="fas fa-money-bill-wave"></i>
+            <div class="stat-value">${report.completion_rate}%</div>
+            <div class="stat-label">Выполнение плана</div>
+            <div class="kpi-indicator">
+              <div class="kpi-progress ${report.completion_rate > 90 ? 'kpi-good' : report.completion_rate > 75 ? 'kpi-medium' : 'kpi-bad'}" 
+                   style="width: ${report.completion_rate}%"></div>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <i class="fas fa-clock"></i>
+            <div class="stat-value">${report.equipment_utilization}%</div>
+            <div class="stat-label">Использование оборудования</div>
+            <div class="kpi-indicator">
+              <div class="kpi-progress ${report.equipment_utilization > 85 ? 'kpi-good' : report.equipment_utilization > 70 ? 'kpi-medium' : 'kpi-bad'}" 
+                   style="width: ${report.equipment_utilization}%"></div>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <i class="fas fa-truck-loading"></i>
+            <div class="stat-value">${report.avg_completion_time}</div>
+            <div class="stat-label">Среднее время выполнения</div>
+          </div>
+          
+          <div class="stat-card">
+            <i class="fas fa-user-clock"></i>
+            <div class="stat-value">${report.labor_efficiency}%</div>
+            <div class="stat-label">Эффективность труда</div>
+            <div class="kpi-indicator">
+              <div class="kpi-progress ${report.labor_efficiency > 85 ? 'kpi-good' : report.labor_efficiency > 70 ? 'kpi-medium' : 'kpi-bad'}" 
+                   style="width: ${report.labor_efficiency}%"></div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Обновление статистики
+      function updateStats(ordersCount, workCentersCount) {
+        document.getElementById('totalOrders').textContent = ordersCount;
+        document.getElementById('totalWorkCenters').textContent = workCentersCount;
+        document.getElementById('avgLoad').textContent = '78%'; // Заглушка
+        document.getElementById('efficiency').textContent = '85%'; // Заглушка
+      }
+
+      // Показ уведомлений
+      function showNotification(message, type = 'success') {
+        const notification = elements.notification;
+        const content = notification.querySelector('.notification-content');
+        content.textContent = message;
+        
+        notification.className = 'notification';
+        notification.classList.add(type, 'show');
+        
+        notification.querySelector('i').className = 
+          type === 'success' ? 'fas fa-check-circle' :
+          type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle';
+        
+        setTimeout(() => {
+          notification.classList.remove('show');
+        }, 3000);
+      }
+
+      // Вспомогательные функции
+      function getRoleName(role) {
+        const names = {
+          [ROLES.ADMIN]: 'Администратор',
+          [ROLES.PLANNER]: 'Планировщик',
+          [ROLES.DIRECTOR]: 'Директор',
+          [ROLES.CLIENT]: 'Клиент',
+          [ROLES.DIRECTOR_PLANNER]: 'Директор+Планировщик'
+        };
+        return names[role] || role;
+      }
+
+      function getPriorityName(priority) {
+        const names = {
+          'high': 'Высокий',
+          'medium': 'Средний',
+          'low': 'Низкий'
+        };
+        return names[priority] || priority;
+      }
+
+      // Заполнение выпадающих списков
+      function populateWorkCenterSelect(workCenters) {
+        const select = elements.workCenterSelect;
+        select.innerHTML = '';
+        
+        workCenters.forEach(wc => {
+          const option = document.createElement('option');
+          option.value = wc.id;
+          option.textContent = wc.name;
+          select.appendChild(option);
+        });
+      }
+
+      function populateStructureSelect(structures) {
+        const select = elements.structureSelect;
+        select.innerHTML = '<option value="">Выберите структуру</option>';
+        
+        structures.forEach(structure => {
+          const option = document.createElement('option');
+          option.value = structure.id;
+          option.textContent = structure.name;
+          select.appendChild(option);
+        });
+      }
+
+      // Обработчики событий
+      elements.addWorkCenterForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const workCenter = {
+          name: document.getElementById('newWorkCenterName').value,
+          description: document.getElementById('workCenterDescription').value,
+          hourly_rate: parseFloat(document.getElementById('hourlyRate').value),
+          setup_time: parseInt(document.getElementById('setupTime').value),
+          tenant_id: currentUser.tenantId
+        };
+        
+        try {
+          await apiClient.createWorkCenter(workCenter);
+          showNotification('Рабочий центр добавлен', 'success');
+          loadInitialData();
+          elements.addWorkCenterForm.reset();
+        } catch (error) {
+          showNotification(`Ошибка создания: ${error.message}`, 'error');
+        }
+      });
+
+      elements.addUserBtn.addEventListener('click', async () => {
+        const username = document.getElementById('userNameInput').value;
+        const password = document.getElementById('userPassword').value;
+        const role = document.getElementById('userRoleSelect').value;
+        
+        if (!username || !password || !role) {
+          showNotification('Заполните все поля', 'error');
+          return;
+        }
+        
+        try {
+          await apiClient.createUser({ username, password, role });
+          showNotification('Пользователь добавлен', 'success');
+          loadInitialData();
+        } catch (error) {
+          showNotification(`Ошибка создания: ${error.message}`, 'error');
+        }
+      });
+
+      elements.orderForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const order = {
+          name: document.getElementById('orderName').value,
+          work_center_id: document.getElementById('workCenterSelect').value,
+          start_date: document.getElementById('startDate').value,
+          end_date: document.getElementById('endDate').value,
+          priority: document.getElementById('orderPriority').value,
+          material_cost: parseFloat(document.getElementById('materialCost').value) || 0,
+          labor_cost: parseFloat(document.getElementById('laborCost').value) || 0,
+          tenant_id: currentUser.tenantId,
+          created_by: currentUser.id
+        };
+        
+        try {
+          if (document.getElementById('orderId').value) {
+            // Редактирование
+            await apiClient.updateOrder(document.getElementById('orderId').value, order);
+            showNotification('Заказ обновлен', 'success');
+          } else {
+            // Создание
+            await apiClient.createOrder(order);
+            showNotification('Заказ создан', 'success');
+          }
+          loadInitialData();
+          elements.orderForm.reset();
+        } catch (error) {
+          showNotification(`Ошибка сохранения: ${error.message}`, 'error');
+        }
+      });
+
+      elements.aiGenerateStructureBtn.addEventListener('click', async () => {
+        const description = elements.aiStructureInput.value.trim();
+        if (!description) {
+          showNotification('Введите описание структуры', 'error');
+          return;
+        }
+        
+        elements.aiStructureResponse.textContent = 'Генерация структуры...';
+        
+        try {
+          const result = await apiClient.generateStructureFromAI(description);
+          elements.aiStructureResponse.textContent = result.message;
+          showNotification('Структура создана', 'success');
+          loadInitialData();
+        } catch (error) {
+          elements.aiStructureResponse.textContent = `Ошибка: ${error.message}`;
+          showNotification('Ошибка генерации', 'error');
+        }
+      });
+
+      elements.aiGenerateOrderBtn.addEventListener('click', async () => {
+        const description = elements.aiOrderInput.value.trim();
+        const structureId = elements.structureSelect.value;
+        
+        if (!description) {
+          showNotification('Введите описание заказа', 'error');
+          return;
+        }
+        
+        if (!structureId) {
+          showNotification('Выберите производственную структуру', 'error');
+          return;
+        }
+        
+        elements.aiOrderResponse.textContent = 'Генерация заказа...';
+        
+        try {
+          const result = await apiClient.generateOrderFromAI(description, structureId);
+          elements.aiOrderResponse.textContent = result.message;
+          showNotification('Заказ создан', 'success');
+          loadInitialData();
+        } catch (error) {
+          elements.aiOrderResponse.textContent = `Ошибка: ${error.message}`;
+          showNotification('Ошибка генерации', 'error');
+        }
+      });
+
+      // Обработчики переключения ролей
+      elements.roleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          elements.roleButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentUser.role = btn.dataset.role;
+          updateUserInfo();
+          loadInitialData();
+        });
+      });
+
+      // Запуск приложения
+      init();
+    });
+  </script>
+</body>
+</html>
