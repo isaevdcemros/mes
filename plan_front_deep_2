@@ -1,0 +1,1990 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES: Профессиональный редактор планировки участка</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root {
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --danger-color: #e74c3c;
+    --idle-color: #95a5a6;
+    --maintenance-color: #9b59b6;
+    --grid-color: rgba(52, 152, 219, 0.1);
+    --shadow: 0 4px 12px rgba(0,0,0,0.15);
+    --transition: all 0.3s ease;
+  }
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
+    min-height: 100vh;
+    color: #333;
+    line-height: 1.6;
+    padding: 20px;
+    overflow: hidden;
+  }
+  
+  .app-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 25px;
+    height: calc(100vh - 40px);
+  }
+  
+  header {
+    grid-column: 1 / -1;
+    background: white;
+    border-radius: 12px;
+    padding: 20px 30px;
+    box-shadow: var(--shadow);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .logo-icon {
+    background: var(--primary-color);
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+  
+  .logo-text h1 {
+    font-size: 24px;
+    color: var(--primary-color);
+    margin: 0;
+  }
+  
+  .logo-text p {
+    color: #7f8c8d;
+    font-size: 14px;
+    margin-top: 3px;
+  }
+  
+  .user-panel {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .user-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: var(--secondary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+  }
+  
+  .panel {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: var(--shadow);
+    height: 100%;
+    overflow-y: auto;
+  }
+  
+  h2, h3 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  h2 i, h3 i {
+    color: var(--secondary-color);
+  }
+  
+  .section {
+    margin-bottom: 25px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  
+  .btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  
+  button {
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+  }
+  
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+    opacity: 0.9;
+  }
+  
+  button:active {
+    transform: translateY(0);
+  }
+  
+  button.active {
+    background: var(--success-color);
+  }
+  
+  button.success {
+    background: var(--success-color);
+  }
+  
+  button.warning {
+    background: var(--warning-color);
+  }
+  
+  button.danger {
+    background: var(--danger-color);
+  }
+  
+  .equipment-btn {
+    flex-direction: column;
+    text-align: center;
+    width: 100px;
+    height: 100px;
+    padding: 10px;
+  }
+  
+  .equipment-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+  
+  input[type="text"], select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 16px;
+    transition: var(--transition);
+  }
+  
+  input[type="text"]:focus, select:focus {
+    border-color: var(--secondary-color);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  }
+  
+  #field-container {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: var(--shadow);
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  #field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .view-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .view-btn {
+    background: #ecf0f1;
+    color: #7f8c8d;
+    padding: 8px 15px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  
+  .view-btn.active {
+    background: var(--secondary-color);
+    color: white;
+  }
+  
+  #field-wrapper {
+    flex: 1;
+    border: 2px dashed #bdc3c7;
+    border-radius: 10px;
+    position: relative;
+    background: 
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+      linear-gradient(0deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: center center;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  
+  #field {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2000px;
+    height: 2000px;
+    transform-origin: 0 0;
+    transform: scale(1);
+    transition: transform 0.2s ease;
+    background: 
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+      linear-gradient(0deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: center center;
+  }
+  
+  .block-wrapper {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    transition: var(--transition);
+    cursor: move;
+    z-index: 1;
+  }
+  
+  .block-wrapper:hover {
+    transform: scale(1.05);
+    z-index: 10;
+  }
+  
+  .block-wrapper.selected {
+    z-index: 5;
+    box-shadow: 0 0 0 3px var(--warning-color);
+    border-radius: 8px;
+  }
+  
+  .block {
+    width: 100px;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-weight: bold;
+    user-select: none;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  
+  .block-id {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: normal;
+  }
+  
+  .block-icon {
+    font-size: 28px;
+    margin-bottom: 5px;
+  }
+  
+  .block-name {
+    font-size: 14px;
+    text-align: center;
+    padding: 0 5px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  
+  .status-indicator {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+  }
+  
+  .status-working { background: var(--success-color); }
+  .status-idle { background: var(--idle-color); }
+  .status-maintenance { background: var(--maintenance-color); }
+  .status-error { background: var(--danger-color); }
+  
+  .data-list {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 12px;
+    border-radius: 8px;
+    width: 200px;
+    font-size: 14px;
+    color: #333;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    cursor: default;
+  }
+  
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #eee;
+  }
+  
+  .data-row:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+  
+  .data-label {
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+  
+  .field-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  
+  .field-row input, .field-row select {
+    flex: 1;
+    margin-bottom: 0;
+  }
+  
+  .remove-field-btn {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  
+  .remove-field-btn:hover {
+    transform: scale(1.1);
+  }
+  
+  textarea {
+    width: 100%;
+    height: 150px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    resize: vertical;
+    margin-top: 10px;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  
+  .actions button {
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .instructions {
+    background: #f8f9fa;
+    border-left: 4px solid var(--secondary-color);
+    padding: 15px;
+    border-radius: 0 8px 8px 0;
+    margin-top: 25px;
+    font-size: 14px;
+  }
+  
+  .instructions ul {
+    padding-left: 20px;
+    margin: 12px 0;
+  }
+  
+  .instructions li {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .instructions li i {
+    color: var(--success-color);
+    margin-top: 4px;
+  }
+  
+  .block-counter {
+    background: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    box-shadow: var(--shadow);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .notification {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    background: var(--success-color);
+    color: white;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.5s ease;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .notification.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  
+  .notification.warning {
+    background: var(--warning-color);
+  }
+  
+  .notification.error {
+    background: var(--danger-color);
+  }
+  
+  .status-legend {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+  }
+  
+  .status-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+  }
+  
+  .search-container {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  
+  .search-container i {
+    position: absolute;
+    left: 15px;
+    top: 14px;
+    color: #7f8c8d;
+  }
+  
+  .search-container input {
+    padding-left: 45px;
+  }
+  
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: auto;
+    padding: 30px;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  
+  .close-modal {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #7f8c8d;
+    transition: var(--transition);
+  }
+  
+  .close-modal:hover {
+    color: var(--danger-color);
+  }
+  
+  .modal-title {
+    margin-bottom: 25px;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .modal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  
+  .modal-item {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 2px solid transparent;
+  }
+  
+  .modal-item:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow);
+    border-color: var(--secondary-color);
+  }
+  
+  .modal-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+    color: var(--primary-color);
+  }
+  
+  .modal-item h4 {
+    color: var(--primary-color);
+    margin-bottom: 5px;
+  }
+  
+  .modal-item p {
+    color: #7f8c8d;
+    font-size: 13px;
+  }
+  
+  .api-section {
+    background: #f0f7ff;
+    border-left: 4px solid var(--secondary-color);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+  }
+  
+  .api-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  
+  .api-controls select {
+    flex: 1;
+  }
+  
+  .tag-selector {
+    position: relative;
+  }
+  
+  .tag-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  .tag-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .tag-item:hover {
+    background: #f0f7ff;
+  }
+  
+  .tag-item.selected {
+    background: var(--secondary-color);
+    color: white;
+  }
+  
+  .detail-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .detail-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: auto;
+    padding: 30px;
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .detail-icon {
+    font-size: 36px;
+    color: var(--primary-color);
+  }
+  
+  .detail-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  
+  .detail-section {
+    margin-bottom: 20px;
+  }
+  
+  .detail-section h4 {
+    margin-bottom: 10px;
+    color: var(--primary-color);
+    border-bottom: 2px solid #eee;
+    padding-bottom: 5px;
+  }
+  
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  
+  .detail-label {
+    font-weight: 600;
+    color: #555;
+  }
+  
+  .detail-value {
+    text-align: right;
+  }
+  
+  .detail-chart {
+    height: 200px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #7f8c8d;
+    font-style: italic;
+  }
+  
+  .zoom-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+    background: rgba(255,255,255,0.9);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+  }
+  
+  .zoom-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    border-radius: 50%;
+    background: var(--secondary-color);
+    color: white;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  
+  .zoom-btn:hover {
+    transform: scale(1.1);
+  }
+  
+  .scale-display {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(255,255,255,0.9);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    box-shadow: var(--shadow);
+    z-index: 10;
+  }
+  
+  .coordinates-display {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.9);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    box-shadow: var(--shadow);
+    z-index: 10;
+    font-family: monospace;
+  }
+  
+  .grid-controls {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255,255,255,0.9);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+  }
+  
+  .grid-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #ecf0f1;
+    cursor: pointer;
+  }
+  
+  .grid-btn.active {
+    background: var(--secondary-color);
+    color: white;
+  }
+  
+  .snap-indicator {
+    position: absolute;
+    bottom: 60px;
+    left: 20px;
+    background: rgba(255,255,255,0.9);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    box-shadow: var(--shadow);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  @media (max-width: 1100px) {
+    .app-container {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    
+    #field-container {
+      height: 500px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <i class="fas fa-industry"></i>
+      </div>
+      <div class="logo-text">
+        <h1>MES: Профессиональный редактор участка</h1>
+        <p>Дискретное производство | Управление оборудованием</p>
+      </div>
+    </div>
+    <div class="user-panel">
+      <div class="user-avatar">МП</div>
+      <div>
+        <div>Мастер участка</div>
+        <div style="font-size: 14px; color: #7f8c8d;">Цех №3</div>
+      </div>
+    </div>
+  </header>
+  
+  <div class="panel">
+    <div class="section">
+      <h2><i class="fas fa-tools"></i> Оборудование</h2>
+      <div class="btn-group">
+        <button class="equipment-btn" data-type="cnc">
+          <i class="fas fa-cogs equipment-icon"></i>
+          Станок ЧПУ
+        </button>
+        <button class="equipment-btn" data-type="press">
+          <i class="fas fa-hammer equipment-icon"></i>
+          Пресс
+        </button>
+      </div>
+      <div class="btn-group">
+        <button class="equipment-btn" data-type="conveyor">
+          <i class="fas fa-conveyor-belt equipment-icon"></i>
+          Конвейер
+        </button>
+        <button class="equipment-btn" data-type="storage">
+          <i class="fas fa-pallet equipment-icon"></i>
+          Склад
+        </button>
+      </div>
+      <div class="btn-group">
+        <button class="equipment-btn" data-type="qc">
+          <i class="fas fa-clipboard-check equipment-icon"></i>
+          Контроль качества
+        </button>
+        <button class="equipment-btn" data-type="assembly">
+          <i class="fas fa-puzzle-piece equipment-icon"></i>
+          Сборка
+        </button>
+      </div>
+      
+      <button id="more-equipment-btn" style="width:100%; margin-top:10px;">
+        <i class="fas fa-plus-circle"></i> Другое оборудование
+      </button>
+    </div>
+    
+    <div class="section">
+      <h3><i class="fas fa-info-circle"></i> Параметры</h3>
+      <input type="text" id="block-name" placeholder="Наименование оборудования" />
+      
+      <select id="status-select">
+        <option value="working">Работает</option>
+        <option value="idle">Простой</option>
+        <option value="maintenance">Техобслуживание</option>
+        <option value="error">Неисправность</option>
+      </select>
+      
+      <div id="additional-fields">
+        <div class="field-row">
+          <div class="tag-selector" style="flex:1;">
+            <input type="text" class="field-key" placeholder="Выберите или введите параметр" readonly>
+            <div class="tag-dropdown"></div>
+          </div>
+          <input type="text" placeholder="Значение" class="field-value">
+          <button class="remove-field-btn"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button id="add-field-btn"><i class="fas fa-plus"></i> Добавить параметр</button>
+        <button id="clear-fields-btn" class="warning"><i class="fas fa-trash"></i> Очистить</button>
+      </div>
+    </div>
+    
+    <div class="api-section">
+      <h3><i class="fas fa-plug"></i> Источник данных</h3>
+      <select id="api-source">
+        <option value="">-- Выберите источник --</option>
+        <option value="production">Производственная система</option>
+        <option value="maintenance">Система ТОиР</option>
+        <option value="quality">Контроль качества</option>
+        <option value="energy">Энергомониторинг</option>
+      </select>
+      
+      <div class="api-controls">
+        <button id="fetch-tags-btn" class="success"><i class="fas fa-sync"></i> Загрузить теги</button>
+        <button id="api-config-btn" class="warning"><i class="fas fa-cog"></i> Настройки</button>
+      </div>
+    </div>
+    
+    <button id="add-block" class="success" style="width:100%;">
+      <i class="fas fa-plus-square"></i> Добавить оборудование
+    </button>
+    
+    <div class="section">
+      <h3><i class="fas fa-database"></i> Управление данными</h3>
+      <div class="actions">
+        <button id="save" class="success"><i class="fas fa-save"></i> Сохранить</button>
+        <button id="load" class="warning"><i class="fas fa-folder-open"></i> Загрузить</button>
+        <button id="clear" class="danger"><i class="fas fa-broom"></i> Очистить</button>
+      </div>
+      <textarea id="json-data" placeholder="Данные планировки в формате JSON"></textarea>
+    </div>
+    
+    <div class="instructions">
+      <h3><i class="fas fa-lightbulb"></i> Инструкция:</h3>
+      <ul>
+        <li><i class="fas fa-check-circle"></i> Выберите тип оборудования</li>
+        <li><i class="fas fa-check-circle"></i> Укажите параметры и состояние</li>
+        <li><i class="fas fa-check-circle"></i> Разместите оборудование на плане</li>
+        <li><i class="fas fa-check-circle"></i> Используйте масштабирование и панорамирование</li>
+        <li><i class="fas fa-check-circle"></i> Включите привязку к сетке для точного позиционирования</li>
+      </ul>
+    </div>
+    
+    <div class="status-legend">
+      <div class="status-item">
+        <div class="status-color status-working"></div>
+        <span>Работает</span>
+      </div>
+      <div class="status-item">
+        <div class="status-color status-idle"></div>
+        <span>Простой</span>
+      </div>
+      <div class="status-item">
+        <div class="status-color status-maintenance"></div>
+        <span>Обслуживание</span>
+      </div>
+      <div class="status-item">
+        <div class="status-color status-error"></div>
+        <span>Неисправность</span>
+      </div>
+    </div>
+  </div>
+  
+  <div id="field-container">
+    <div id="field-header">
+      <h2><i class="fas fa-map"></i> Планировка участка</h2>
+      <div class="view-controls">
+        <div class="block-counter">
+          <i class="fas fa-cube"></i>
+          Оборудование: <span id="block-count">0</span>
+        </div>
+        <button id="center-view-btn" class="view-btn" title="Центрировать вид">
+          <i class="fas fa-crosshairs"></i>
+        </button>
+      </div>
+    </div>
+    
+    <div id="field-wrapper">
+      <div id="field"></div>
+      <div class="zoom-controls">
+        <button id="zoom-in-btn" class="zoom-btn" title="Увеличить">
+          <i class="fas fa-plus"></i>
+        </button>
+        <button id="zoom-out-btn" class="zoom-btn" title="Уменьшить">
+          <i class="fas fa-minus"></i>
+        </button>
+        <button id="reset-zoom-btn" class="zoom-btn" title="Сбросить масштаб">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+      <div class="scale-display">
+        Масштаб: <span id="scale-value">100%</span>
+      </div>
+      <div class="coordinates-display">
+        X: <span id="coord-x">0</span> | Y: <span id="coord-y">0</span>
+      </div>
+      <div class="grid-controls">
+        <button id="grid-toggle-btn" class="grid-btn active" title="Сетка">
+          <i class="fas fa-th"></i>
+        </button>
+        <button id="snap-toggle-btn" class="grid-btn active" title="Привязка к сетке">
+          <i class="fas fa-magnet"></i>
+        </button>
+      </div>
+      <div class="snap-indicator">
+        <i class="fas fa-magnet"></i> Привязка: <span id="snap-size">10px</span>
+      </div>
+    </div>
+    
+    <div class="actions" style="margin-top:20px;">
+      <button id="delete-block-btn" class="danger" disabled>
+        <i class="fas fa-trash-alt"></i> Удалить оборудование
+      </button>
+      <button id="edit-block-btn" class="warning" disabled>
+        <i class="fas fa-edit"></i> Изменить параметры
+      </button>
+      <button id="save-plan-btn" class="success">
+        <i class="fas fa-download"></i> Сохранить план
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="notification" id="notification">
+  <i class="fas fa-check-circle"></i> Операция выполнена успешно!
+</div>
+
+<div id="equipment-modal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <h2 class="modal-title"><i class="fas fa-toolbox"></i> Выбор оборудования</h2>
+    
+    <div class="modal-grid">
+      <div class="modal-item" data-type="lathe">
+        <i class="fas fa-cog modal-icon"></i>
+        <h4>Токарный станок</h4>
+        <p>Обработка металла</p>
+      </div>
+      <div class="modal-item" data-type="milling">
+        <i class="fas fa-cut modal-icon"></i>
+        <h4>Фрезерный станок</h4>
+        <p>Обработка поверхностей</p>
+      </div>
+      <div class="modal-item" data-type="oven">
+        <i class="fas fa-fire modal-icon"></i>
+        <h4>Печь термообработки</h4>
+        <p>Термическая обработка</p>
+      </div>
+      <div class="modal-item" data-type="painting">
+        <i class="fas fa-paint-roller modal-icon"></i>
+        <h4>Камера покраски</h4>
+        <p>Нанесение покрытий</p>
+      </div>
+      <div class="modal-item" data-type="packing">
+        <i class="fas fa-box modal-icon"></i>
+        <h4>Упаковочная линия</h4>
+        <p>Фасовка и упаковка</p>
+      </div>
+      <div class="modal-item" data-type="robot">
+        <i class="fas fa-robot modal-icon"></i>
+        <h4>Роботизированная ячейка</h4>
+        <p>Автоматизированная сборка</p>
+      </div>
+    </div>
+    
+    <button id="confirm-equipment" class="success" style="width:100%;">
+      <i class="fas fa-check"></i> Выбрать оборудование
+    </button>
+  </div>
+</div>
+
+<script>
+  // Конфигурация типов оборудования
+  const equipmentTypes = {
+    cnc: {
+      name: "Станок ЧПУ",
+      icon: "fas fa-cogs",
+      color: "#3498db"
+    },
+    press: {
+      name: "Пресс",
+      icon: "fas fa-hammer",
+      color: "#e74c3c"
+    },
+    conveyor: {
+      name: "Конвейер",
+      icon: "fas fa-conveyor-belt",
+      color: "#95a5a6"
+    },
+    storage: {
+      name: "Склад",
+      icon: "fas fa-pallet",
+      color: "#2ecc71"
+    },
+    qc: {
+      name: "Контроль качества",
+      icon: "fas fa-clipboard-check",
+      color: "#9b59b6"
+    },
+    assembly: {
+      name: "Сборка",
+      icon: "fas fa-puzzle-piece",
+      color: "#f39c12"
+    },
+    lathe: {
+      name: "Токарный станок",
+      icon: "fas fa-cog",
+      color: "#1abc9c"
+    },
+    milling: {
+      name: "Фрезерный станок",
+      icon: "fas fa-cut",
+      color: "#d35400"
+    },
+    oven: {
+      name: "Печь термообработки",
+      icon: "fas fa-fire",
+      color: "#c0392b"
+    },
+    painting: {
+      name: "Камера покраски",
+      icon: "fas fa-paint-roller",
+      color: "#8e44ad"
+    },
+    packing: {
+      name: "Упаковочная линия",
+      icon: "fas fa-box",
+      color: "#16a085"
+    },
+    robot: {
+      name: "Роботизированная ячейка",
+      icon: "fas fa-robot",
+      color: "#7f8c8d"
+    }
+  };
+
+  // Теги для различных источников данных
+  const apiTags = {
+    production: [
+      "Производительность", "Загрузка", "Произведено", "Простои", 
+      "OEE", "Цикл", "Брак", "Запланировано"
+    ],
+    maintenance: [
+      "ТО план", "ТО факт", "Последнее ТО", "Следующее ТО", 
+      "Ресурс", "Износ", "Запчасти", "Ремонты"
+    ],
+    quality: [
+      "Брак", "Дефекты", "Соответствие", "Контрольные точки", 
+      "КПК", "Допуски", "Сертификаты", "Аудит"
+    ],
+    energy: [
+      "Потребление", "Пиковая нагрузка", "Средняя нагрузка", 
+      "Эффективность", "Затраты", "Показания", "Тренд"
+    ]
+  };
+
+  // DOM элементы
+  const field = document.getElementById('field');
+  const blockNameInput = document.getElementById('block-name');
+  const statusSelect = document.getElementById('status-select');
+  const addBlockBtn = document.getElementById('add-block');
+  const saveBtn = document.getElementById('save');
+  const loadBtn = document.getElementById('load');
+  const clearBtn = document.getElementById('clear');
+  const jsonData = document.getElementById('json-data');
+  const additionalFieldsContainer = document.getElementById('additional-fields');
+  const addFieldBtn = document.getElementById('add-field-btn');
+  const clearFieldsBtn = document.getElementById('clear-fields-btn');
+  const deleteBlockBtn = document.getElementById('delete-block-btn');
+  const editBlockBtn = document.getElementById('edit-block-btn');
+  const savePlanBtn = document.getElementById('save-plan-btn');
+  const blockCountEl = document.getElementById('block-count');
+  const notification = document.getElementById('notification');
+  const moreEquipmentBtn = document.getElementById('more-equipment-btn');
+  const equipmentModal = document.getElementById('equipment-modal');
+  const closeModal = document.querySelectorAll('.close-modal');
+  const confirmEquipmentBtn = document.getElementById('confirm-equipment');
+  const equipmentItems = document.querySelectorAll('.modal-item');
+  const apiSourceSelect = document.getElementById('api-source');
+  const fetchTagsBtn = document.getElementById('fetch-tags-btn');
+  const apiConfigBtn = document.getElementById('api-config-btn');
+  const zoomInBtn = document.getElementById('zoom-in-btn');
+  const zoomOutBtn = document.getElementById('zoom-out-btn');
+  const resetZoomBtn = document.getElementById('reset-zoom-btn');
+  const scaleValue = document.getElementById('scale-value');
+  const centerViewBtn = document.getElementById('center-view-btn');
+  const fieldWrapper = document.getElementById('field-wrapper');
+  const coordX = document.getElementById('coord-x');
+  const coordY = document.getElementById('coord-y');
+  const gridToggleBtn = document.getElementById('grid-toggle-btn');
+  const snapToggleBtn = document.getElementById('snap-toggle-btn');
+  const snapSize = document.getElementById('snap-size');
+
+  // Состояние приложения
+  let selectedType = 'cnc';
+  let blocks = [];
+  let dragData = null;
+  let selectedBlockId = null;
+  let nextId = 1;
+  let selectedModalType = '';
+  let availableTags = [];
+  let scale = 1;
+  let isPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let scrollLeft = 0;
+  let scrollTop = 0;
+  let showGrid = true;
+  let snapToGrid = true;
+  let gridSize = 10;
+
+  // Инициализация масштабирования и навигации
+  function initZoomAndNavigation() {
+    updateScaleDisplay();
+    
+    // Обработчики кнопок масштабирования
+    zoomInBtn.addEventListener('click', () => {
+      scale = Math.min(scale + 0.1, 2);
+      field.style.transform = `scale(${scale})`;
+      updateScaleDisplay();
+    });
+    
+    zoomOutBtn.addEventListener('click', () => {
+      scale = Math.max(scale - 0.1, 0.5);
+      field.style.transform = `scale(${scale})`;
+      updateScaleDisplay();
+    });
+    
+    resetZoomBtn.addEventListener('click', () => {
+      scale = 1;
+      field.style.transform = `scale(${scale})`;
+      updateScaleDisplay();
+    });
+    
+    // Центрирование вида
+    centerViewBtn.addEventListener('click', () => {
+      fieldWrapper.scrollTo({
+        left: (field.offsetWidth * scale - fieldWrapper.clientWidth) / 2,
+        top: (field.offsetHeight * scale - fieldWrapper.clientHeight) / 2,
+        behavior: 'smooth'
+      });
+    });
+    
+    // Переключение сетки
+    gridToggleBtn.addEventListener('click', () => {
+      showGrid = !showGrid;
+      gridToggleBtn.classList.toggle('active', showGrid);
+      field.style.background = showGrid 
+        ? `linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+           linear-gradient(0deg, var(--grid-color) 1px, transparent 1px)`
+        : 'none';
+      field.style.backgroundSize = showGrid ? '50px 50px' : 'auto';
+    });
+    
+    // Переключение привязки к сетке
+    snapToggleBtn.addEventListener('click', () => {
+      snapToGrid = !snapToGrid;
+      snapToggleBtn.classList.toggle('active', snapToGrid);
+      snapSize.textContent = snapToGrid ? `${gridSize}px` : 'выкл';
+    });
+    
+    // Панорамирование поля
+    fieldWrapper.addEventListener('mousedown', (e) => {
+      if (e.button === 1 || (e.button === 0 && e.altKey)) { // Средняя кнопка или Alt + левая кнопка
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        scrollLeft = fieldWrapper.scrollLeft;
+        scrollTop = fieldWrapper.scrollTop;
+        fieldWrapper.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (isPanning) {
+        const dx = e.clientX - panStartX;
+        const dy = e.clientY - panStartY;
+        fieldWrapper.scrollLeft = scrollLeft - dx;
+        fieldWrapper.scrollTop = scrollTop - dy;
+      }
+      
+      // Обновление координат курсора
+      const rect = fieldWrapper.getBoundingClientRect();
+      const x = e.clientX - rect.left + fieldWrapper.scrollLeft;
+      const y = e.clientY - rect.top + fieldWrapper.scrollTop;
+      coordX.textContent = Math.round(x);
+      coordY.textContent = Math.round(y);
+    });
+    
+    document.addEventListener('mouseup', (e) => {
+      if (isPanning) {
+        isPanning = false;
+        fieldWrapper.style.cursor = 'default';
+      }
+    });
+    
+    // Масштабирование колесиком мыши
+    fieldWrapper.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        scale = Math.min(Math.max(scale + delta, 0.5), 2);
+        field.style.transform = `scale(${scale})`;
+        updateScaleDisplay();
+      }
+    });
+  }
+  
+  function updateScaleDisplay() {
+    scaleValue.textContent = `${Math.round(scale * 100)}%`;
+  }
+
+  // Выбор типа оборудования
+  document.querySelectorAll('.equipment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.equipment-btn').forEach(b => {
+        b.style.border = 'none';
+        b.style.boxShadow = 'none';
+      });
+      btn.style.border = '3px solid #3498db';
+      btn.style.boxShadow = '0 0 10px rgba(52, 152, 219, 0.5)';
+      selectedType = btn.dataset.type;
+    });
+  });
+
+  // Открытие модального окна выбора оборудования
+  moreEquipmentBtn.addEventListener('click', () => {
+    equipmentModal.style.display = 'flex';
+  });
+
+  // Закрытие модальных окон
+  closeModal.forEach(btn => {
+    btn.addEventListener('click', () => {
+      equipmentModal.style.display = 'none';
+    });
+  });
+
+  // Выбор оборудования в модальном окне
+  equipmentItems.forEach(item => {
+    item.addEventListener('click', () => {
+      equipmentItems.forEach(i => i.style.borderColor = 'transparent');
+      item.style.borderColor = '#3498db';
+      selectedModalType = item.dataset.type;
+    });
+  });
+
+  // Подтверждение выбора оборудования
+  confirmEquipmentBtn.addEventListener('click', () => {
+    if (selectedModalType) {
+      selectedType = selectedModalType;
+      equipmentModal.style.display = 'none';
+      showNotification(`Выбрано: ${equipmentTypes[selectedType].name}`);
+    }
+  });
+
+  // Загрузка тегов из API
+  fetchTagsBtn.addEventListener('click', () => {
+    const source = apiSourceSelect.value;
+    if (!source) {
+      showNotification('Выберите источник данных', 'warning');
+      return;
+    }
+    
+    // Эмуляция загрузки данных с сервера
+    showNotification('Загрузка тегов...');
+    setTimeout(() => {
+      availableTags = apiTags[source] || [];
+      showNotification(`Загружено тегов: ${availableTags.length}`);
+      renderTagSelector();
+    }, 1000);
+  });
+
+  // Открытие настроек API
+  apiConfigBtn.addEventListener('click', () => {
+    showNotification('Открытие настроек API (заглушка для будущей реализации)', 'warning');
+  });
+
+  // Рендеринг селектора тегов
+  function renderTagSelector() {
+    const tagSelectors = document.querySelectorAll('.tag-selector');
+    
+    tagSelectors.forEach(selector => {
+      const input = selector.querySelector('.field-key');
+      const dropdown = selector.querySelector('.tag-dropdown');
+      
+      // Очищаем и заполняем dropdown
+      dropdown.innerHTML = '';
+      availableTags.forEach(tag => {
+        const tagItem = document.createElement('div');
+        tagItem.className = 'tag-item';
+        tagItem.textContent = tag;
+        tagItem.addEventListener('click', () => {
+          input.value = tag;
+          dropdown.style.display = 'none';
+        });
+        dropdown.appendChild(tagItem);
+      });
+      
+      // Обработчик открытия dropdown
+      input.addEventListener('click', () => {
+        if (availableTags.length > 0) {
+          dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+      });
+    });
+  }
+
+  // Добавление поля ввода
+  function addFieldRow(key = '', value = '') {
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.innerHTML = `
+      <div class="tag-selector" style="flex:1;">
+        <input type="text" class="field-key" placeholder="Выберите или введите параметр" value="${key}" ${key ? '' : 'readonly'}>
+        <div class="tag-dropdown"></div>
+      </div>
+      <input type="text" placeholder="Значение" class="field-value" value="${value}">
+      <button class="remove-field-btn"><i class="fas fa-times"></i></button>
+    `;
+    additionalFieldsContainer.appendChild(row);
+    
+    // Обработчик удаления поля
+    row.querySelector('.remove-field-btn').addEventListener('click', () => {
+      row.remove();
+    });
+    
+    // Инициализация селектора тегов
+    renderTagSelector();
+  }
+
+  addFieldBtn.addEventListener('click', () => {
+    addFieldRow();
+  });
+
+  // Очистка полей
+  clearFieldsBtn.addEventListener('click', () => {
+    additionalFieldsContainer.innerHTML = '';
+    addFieldRow();
+  });
+
+  // Создание блока оборудования
+  function createBlock(type, name, status, additionalData, x, y) {
+    const id = `eq-${nextId++}`;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'block-wrapper';
+    wrapper.style.left = `${x}px`;
+    wrapper.style.top = `${y}px`;
+    wrapper.dataset.id = id;
+    
+    // Создание блока
+    const block = document.createElement('div');
+    block.className = 'block';
+    block.style.backgroundColor = equipmentTypes[type].color;
+    
+    block.innerHTML = `
+      <div class="block-id">#${id.slice(-3)}</div>
+      <i class="${equipmentTypes[type].icon} block-icon"></i>
+      <div class="block-name">${name}</div>
+      <div class="status-indicator status-${status}"></div>
+    `;
+    
+    wrapper.appendChild(block);
+    
+    // Создание списка данных
+    const dataList = document.createElement('div');
+    dataList.className = 'data-list';
+    updateDataList(dataList, additionalData, status);
+    wrapper.appendChild(dataList);
+    
+    // Обработчики событий
+    wrapper.addEventListener('mousedown', dragStart);
+    wrapper.addEventListener('click', selectBlock);
+    
+    return {wrapper, id};
+  }
+
+  // Обновление списка данных
+  function updateDataList(container, data, status) {
+    container.innerHTML = '';
+    
+    // Добавляем статус
+    const statusRow = document.createElement('div');
+    statusRow.className = 'data-row';
+    statusRow.innerHTML = `
+      <div class="data-label">Состояние:</div>
+      <div>${getStatusText(status)}</div>
+    `;
+    container.appendChild(statusRow);
+    
+    // Добавляем пользовательские данные
+    for (const [key, value] of Object.entries(data)) {
+      if (key && value !== undefined) {
+        const row = document.createElement('div');
+        row.className = 'data-row';
+        row.innerHTML = `
+          <div class="data-label">${key}:</div>
+          <div>${value}</div>
+        `;
+        container.appendChild(row);
+      }
+    }
+    
+    if (Object.keys(data).length === 0) {
+      container.innerHTML += '<div class="data-row"><div>Нет параметров</div></div>';
+    }
+  }
+
+  // Получение текста статуса
+  function getStatusText(status) {
+    const statusMap = {
+      working: 'Работает',
+      idle: 'Простой',
+      maintenance: 'Техобслуживание',
+      error: 'Неисправность'
+    };
+    return statusMap[status] || 'Неизвестно';
+  }
+
+  // Добавление блока
+  addBlockBtn.addEventListener('click', () => {
+    const name = blockNameInput.value.trim() || equipmentTypes[selectedType].name;
+    const status = statusSelect.value;
+
+    // Сбор дополнительных данных
+    const additionalData = {};
+    const fieldRows = additionalFieldsContainer.querySelectorAll('.field-row');
+    
+    fieldRows.forEach(row => {
+      const keyInput = row.querySelector('.field-key');
+      const valueInput = row.querySelector('.field-value');
+      const key = keyInput.value.trim();
+      const value = valueInput.value.trim();
+      
+      if (key) {
+        additionalData[key] = value;
+      }
+    });
+
+    // Создание блока
+    const startX = 50 + Math.random() * 100;
+    const startY = 50 + Math.random() * 100;
+    
+    const {wrapper, id} = createBlock(selectedType, name, status, additionalData, startX, startY);
+    field.appendChild(wrapper);
+
+    // Сохранение в структуру
+    blocks.push({
+      id,
+      type: selectedType,
+      name,
+      status,
+      x: startX,
+      y: startY,
+      additionalData
+    });
+
+    // Очистка формы
+    blockNameInput.value = '';
+    additionalFieldsContainer.innerHTML = '';
+    addFieldRow();
+    
+    // Обновление счетчика
+    updateBlockCount();
+    showNotification('Оборудование добавлено');
+  });
+
+  // Перетаскивание блоков
+  function dragStart(e) {
+    if (e.target.classList.contains('remove-field-btn')) return;
+    
+    e.preventDefault();
+    const wrapper = e.currentTarget;
+    dragData = {
+      wrapper,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: parseFloat(wrapper.style.left) || 0,
+      origY: parseFloat(wrapper.style.top) || 0
+    };
+    
+    document.addEventListener('mousemove', dragMove);
+    document.addEventListener('mouseup', dragEnd);
+  }
+
+  function dragMove(e) {
+    if (!dragData) return;
+    
+    const dx = e.clientX - dragData.startX;
+    const dy = e.clientY - dragData.startY;
+    let newX = dragData.origX + dx / scale;
+    let newY = dragData.origY + dy / scale;
+    
+    // Привязка к сетке
+    if (snapToGrid) {
+      newX = Math.round(newX / gridSize) * gridSize;
+      newY = Math.round(newY / gridSize) * gridSize;
+    }
+
+    // Ограничение по полю
+    newX = Math.max(0, Math.min(field.offsetWidth - dragData.wrapper.offsetWidth, newX));
+    newY = Math.max(0, Math.min(field.offsetHeight - dragData.wrapper.offsetHeight, newY));
+
+    dragData.wrapper.style.left = `${newX}px`;
+    dragData.wrapper.style.top = `${newY}px`;
+  }
+
+  function dragEnd(e) {
+    if (!dragData) return;
+    
+    // Обновление позиции
+    const id = dragData.wrapper.dataset.id;
+    const block = blocks.find(b => b.id === id);
+    
+    if (block) {
+      block.x = parseFloat(dragData.wrapper.style.left);
+      block.y = parseFloat(dragData.wrapper.style.top);
+    }
+    
+    dragData = null;
+    
+    document.removeEventListener('mousemove', dragMove);
+    document.removeEventListener('mouseup', dragEnd);
+  }
+
+  // Выбор блока
+  function selectBlock(e) {
+    const wrapper = e.currentTarget;
+    const id = wrapper.dataset.id;
+    
+    // Сброс предыдущего выбора
+    document.querySelectorAll('.block-wrapper').forEach(el => {
+      el.classList.remove('selected');
+    });
+    
+    // Установка нового выбора
+    wrapper.classList.add('selected');
+    selectedBlockId = id;
+    deleteBlockBtn.disabled = false;
+    editBlockBtn.disabled = false;
+    
+    // Загрузка данных выбранного блока в форму
+    const block = blocks.find(b => b.id === id);
+    if (block) {
+      blockNameInput.value = block.name;
+      statusSelect.value = block.status;
+      
+      // Очистка и заполнение дополнительных полей
+      additionalFieldsContainer.innerHTML = '';
+      for (const [key, value] of Object.entries(block.additionalData)) {
+        addFieldRow(key, value);
+      }
+      
+      // Если нет полей, добавим одно пустое
+      if (Object.keys(block.additionalData).length === 0) {
+        addFieldRow();
+      }
+      
+      // Выбор типа оборудования
+      selectedType = block.type;
+      document.querySelectorAll('.equipment-btn').forEach(btn => {
+        btn.style.border = btn.dataset.type === block.type ? '3px solid #3498db' : 'none';
+        btn.style.boxShadow = btn.dataset.type === block.type ? '0 0 10px rgba(52, 152, 219, 0.5)' : 'none';
+      });
+    }
+  }
+
+  // Удаление блока
+  deleteBlockBtn.addEventListener('click', () => {
+    if (!selectedBlockId) return;
+    
+    // Удаление из DOM
+    const wrapper = document.querySelector(`.block-wrapper[data-id="${selectedBlockId}"]`);
+    if (wrapper) {
+      wrapper.remove();
+    }
+    
+    // Удаление из массива
+    blocks = blocks.filter(block => block.id !== selectedBlockId);
+    selectedBlockId = null;
+    deleteBlockBtn.disabled = true;
+    editBlockBtn.disabled = true;
+    
+    // Очистка формы
+    blockNameInput.value = '';
+    additionalFieldsContainer.innerHTML = '';
+    addFieldRow();
+    
+    // Обновление счетчика
+    updateBlockCount();
+    showNotification('Оборудование удалено');
+  });
+
+  // Редактирование блока
+  editBlockBtn.addEventListener('click', () => {
+    if (!selectedBlockId) return;
+    
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block) return;
+    
+    // Обновление данных блока
+    block.name = blockNameInput.value.trim() || equipmentTypes[selectedType].name;
+    block.status = statusSelect.value;
+    
+    // Обновление дополнительных данных
+    block.additionalData = {};
+    const fieldRows = additionalFieldsContainer.querySelectorAll('.field-row');
+    fieldRows.forEach(row => {
+      const keyInput = row.querySelector('.field-key');
+      const valueInput = row.querySelector('.field-value');
+      const key = keyInput.value.trim();
+      const value = valueInput.value.trim();
+      
+      if (key) {
+        block.additionalData[key] = value;
+      }
+    });
+    
+    // Обновление отображения блока
+    const wrapper = document.querySelector(`.block-wrapper[data-id="${selectedBlockId}"]`);
+    if (wrapper) {
+      // Обновление блока
+      const blockEl = wrapper.querySelector('.block');
+      blockEl.style.backgroundColor = equipmentTypes[block.type].color;
+      blockEl.innerHTML = `
+        <div class="block-id">#${block.id.slice(-3)}</div>
+        <i class="${equipmentTypes[block.type].icon} block-icon"></i>
+        <div class="block-name">${block.name}</div>
+        <div class="status-indicator status-${block.status}"></div>
+      `;
+      
+      // Обновление списка данных
+      const dataList = wrapper.querySelector('.data-list');
+      updateDataList(dataList, block.additionalData, block.status);
+    }
+    
+    showNotification('Параметры обновлены');
+  });
+
+  // Очистка поля
+  clearBtn.addEventListener('click', () => {
+    if (blocks.length === 0) {
+      showNotification('Поле уже пустое', 'warning');
+      return;
+    }
+    
+    if (confirm('Вы уверены, что хотите очистить все поле?')) {
+      field.innerHTML = '';
+      blocks = [];
+      selectedBlockId = null;
+      deleteBlockBtn.disabled = true;
+      editBlockBtn.disabled = true;
+      updateBlockCount();
+      showNotification('Поле очищено');
+    }
+  });
+
+  // Сохранение схемы
+  saveBtn.addEventListener('click', () => {
+    if (blocks.length === 0) {
+      showNotification('Нет оборудования для сохранения', 'warning');
+      return;
+    }
+    
+    const json = JSON.stringify({
+      version: "1.0",
+      created: new Date().toISOString(),
+      author: "Мастер участка",
+      layout: blocks
+    }, null, 2);
+    
+    jsonData.value = json;
+    showNotification('Данные сохранены в текстовое поле');
+  });
+
+  // Сохранение плана в файл
+  savePlanBtn.addEventListener('click', () => {
+    if (blocks.length === 0) {
+      showNotification('Нет оборудования для сохранения', 'warning');
+      return;
+    }
+    
+    const data = JSON.stringify({
+      version: "1.0",
+      created: new Date().toISOString(),
+      author: "Мастер участка",
+      layout: blocks
+    }, null, 2);
+    
+    const blob = new Blob([data], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `plan-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification('План сохранен в файл');
+  });
+
+  // Загрузка схемы
+  loadBtn.addEventListener('click', () => {
+    try {
+      const data = JSON.parse(jsonData.value);
+      if (!data.layout || !Array.isArray(data.layout)) {
+        throw new Error('Неверный формат данных');
+      }
+      
+      // Очистка перед загрузкой
+      field.innerHTML = '';
+      blocks = [];
+      selectedBlockId = null;
+      deleteBlockBtn.disabled = true;
+      editBlockBtn.disabled = true;
+      
+      // Загрузка блоков
+      data.layout.forEach(b => {
+        const {wrapper} = createBlock(b.type, b.name, b.status, b.additionalData, b.x, b.y);
+        field.appendChild(wrapper);
+        
+        // Сохранение с сохранением оригинального ID
+        blocks.push({
+          id: b.id,
+          type: b.type,
+          name: b.name,
+          status: b.status,
+          x: b.x,
+          y: b.y,
+          additionalData: b.additionalData || {}
+        });
+      });
+      
+      // Обновление счетчика
+      updateBlockCount();
+      showNotification('План успешно загружен');
+      
+      // Центрировать вид после загрузки
+      centerViewBtn.click();
+    } catch (err) {
+      showNotification(`Ошибка при загрузке: ${err.message}`, 'error');
+    }
+  });
+
+  // Обновление счетчика блоков
+  function updateBlockCount() {
+    blockCountEl.textContent = blocks.length;
+  }
+
+  // Показать уведомление
+  function showNotification(message, type = 'success') {
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'warning' ? 'exclamation-triangle' : 'times'}-circle"></i> ${message}`;
+    notification.className = 'notification';
+    
+    if (type === 'warning') {
+      notification.classList.add('warning');
+    } else if (type === 'error') {
+      notification.classList.add('error');
+    }
+    
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+      notification.classList.remove('show');
+    }, 3000);
+  }
+
+  // Инициализация
+  function init() {
+    // Добавляем первую строку для полей
+    addFieldRow();
+    updateBlockCount();
+    
+    // Выбираем первый тип оборудования
+    document.querySelector('.equipment-btn').style.border = '3px solid #3498db';
+    document.querySelector('.equipment-btn').style.boxShadow = '0 0 10px rgba(52, 152, 219, 0.5)';
+    
+    // Инициализация масштабирования и навигации
+    initZoomAndNavigation();
+    
+    // Добавляем пример оборудования при загрузке
+    setTimeout(() => {
+      const {wrapper, id} = createBlock('cnc', 'Станок ЧПУ #1', 'working', {
+        "Модель": "DMG MORI NLX 2500",
+        "Мощность": "15 кВт",
+        "Загрузка": "78%"
+      }, 100, 100);
+      field.appendChild(wrapper);
+      blocks.push({
+        id,
+        type: 'cnc',
+        name: 'Станок ЧПУ #1',
+        status: 'working',
+        x: 100,
+        y: 100,
+        additionalData: {
+          "Модель": "DMG MORI NLX 2500",
+          "Мощность": "15 кВт",
+          "Загрузка": "78%"
+        }
+      });
+      updateBlockCount();
+    }, 1000);
+  }
+
+  // Запуск приложения
+  init();
+</script>
+
+</body>
+</html>
