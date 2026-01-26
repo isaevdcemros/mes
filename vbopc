@@ -1,0 +1,57 @@
+Option Explicit
+
+Dim fso, log
+Set fso = CreateObject("Scripting.FileSystemObject")
+Set log = fso.CreateTextFile("opc_debug.log", True)
+
+On Error Resume Next
+
+log.WriteLine "=== OPC TEST START ==="
+
+' --- 1. Создание OPCServer ---
+Dim opcServer
+Set opcServer = CreateObject("OPC.Automation.1")
+
+If Err.Number <> 0 Then
+    log.WriteLine "ERROR creating OPC.Automation.1: " & Hex(Err.Number) & " " & Err.Description
+    WScript.Quit 1
+End If
+
+log.WriteLine "OPC.Automation.1 created OK"
+
+' --- 2. Подключение к конкретному OPC серверу ---
+' ВАЖНО: имя должно быть ТОЧНЫМ ProgID сервера
+Dim serverName
+serverName = "Matrikon.OPC.Simulation.1"   ' <-- ЗАМЕНИ НА СВОЙ
+
+opcServer.Connect serverName, ""
+
+If Err.Number <> 0 Then
+    log.WriteLine "ERROR connecting to OPC server: " & Hex(Err.Number) & " " & Err.Description
+    WScript.Quit 2
+End If
+
+log.WriteLine "Connected to OPC server: " & serverName
+
+' --- 3. Получение списка OPC Items (через Browser) ---
+Dim browser
+Set browser = opcServer.CreateBrowser
+
+If Err.Number <> 0 Then
+    log.WriteLine "ERROR creating browser: " & Hex(Err.Number) & " " & Err.Description
+    WScript.Quit 3
+End If
+
+log.WriteLine "Browser created"
+
+browser.ShowBranches
+browser.ShowLeafs
+
+Dim item
+For Each item In browser.LeafItems
+    log.WriteLine "ITEM: " & item
+Next
+
+log.WriteLine "=== OPC TEST END ==="
+
+opcServer.Disconnect
