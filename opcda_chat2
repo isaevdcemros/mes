@@ -1,0 +1,160 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#include <windows.h>
+#include <ole2.h>
+#include <opcda.h>
+#include <iostream>
+#include <iomanip>
+
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "oleaut32.lib")
+#pragma comment(lib, "uuid.lib")
+
+void PrintHR(const wchar_t* step, HRESULT hr)
+{
+    std::wcout << L"[ " << step << L" ] HRESULT = 0x"
+               << std::hex << hr << std::dec << std::endl;
+}
+
+int wmain()
+{
+    HRESULT hr;
+
+    std::wcout << L"=== OPC DA DEBUG CLIENT (XP32) ===" << std::endl;
+
+    // 1. COM init (СТРОГО STA)
+    hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    PrintHR(L"CoInitializeEx", hr);
+    if (FAILED(hr)) return 1;
+
+    hr = CoInitializeSecurity(
+        NULL,
+        -1,
+        NULL,
+        NULL,
+        RPC_C_AUTHN_LEVEL_CONNECT,
+        RPC_C_IMP_LEVEL_IMPERSONATE,
+        NULL,
+        EOAC_NONE,
+        NULL
+    );
+    PrintHR(L"CoInitializeSecurity", hr);
+    if (FAILED(hr)) goto cleanup;
+
+    // 2. CLSID
+    CLSID clsid;
+    hr = CLSIDFromProgID(L"opcserversim.Instance.1", &clsid);
+    PrintHR(L"CLSIDFromProgID", hr);
+    if (FAILED(hr)) goto cleanup;
+
+    // 3. Create OPC server
+    IOPCServer* pServer = NULL;
+    hr = CoCreateInstance(
+        clsid,
+        NULL,
+        CLSCTX_LOCAL_SERVER,
+        IID_IOPCServer,
+        (void**)&pServer
+    );
+    PrintHR(L"CoCreateInstance(IOPCServer)", hr);
+    if (FAILED(hr)) goto cleanup;
+
+    // 4. AddGroup (IUnknown!)
+    DWORD groupHandle = 0;
+    DWORD revisedRate = 0;
+    IUnknown* pGroupUnk = NULL;
+
+    hr = pServer->AddGroup(
+        L"DebugGroup",
+        TRUE,
+        1000,
+        1,
+        NULL,
+        NULL,
+        LOCALE_SYSTEM_DEFAULT,
+        &groupHandle,
+        &revisedRate,
+        IID_IUnknown,
+        (LPUNKNOWN*)&pGroupUnk
+    );
+    PrintHR(L"AddGroup", hr);
+    if (FAILED(hr)) goto release_server;
+
+    // 5. IOPCItemMgt
+    IOPCItemMgt* pItemMgt = NULL;
+    hr = pGroupUnk->QueryInterface(IID_IOPCItemMgt, (void**)&pItemMgt);
+    PrintHR(L"QueryInterface(IOPCItemMgt)", hr);
+    pGroupUnk->Release();
+    if (FAILED(hr)) goto release_server;
+
+    // 6. AddItem
+    OPCITEMDEF item = {};
+    item.szItemID = L"ByteValue";   // <<< МЕНЯЙ ЗДЕСЬ
+    item.bActive = TRUE;
+    item.hClient = 1;
+    item.vtRequestedDataType = VT_EMPTY; // пусть сервер сам решит
+
+    OPCITEMRESULT* pResult = NULL;
+    HRESULT* pErrors = NULL;
+
+    hr = pItemMgt->AddItems(1, &item, &pResult, &pErrors);
+    PrintHR(L"AddItems", hr);
+
+    if (FAILED(hr) || FAILED(pErrors[0])) {
+        std::wcout << L"AddItems item error = 0x"
+                   << std::hex << pErrors[0] << std::dec << std::endl;
+        goto cleanup_items;
+    }
+
+    std::wcout << L"ServerHandle = " << pResult[0].hServer << std::endl;
+
+    // 7. SyncIO
+    IOPCSyncIO* pSyncIO = NULL;
+    hr = pItemMgt->QueryInterface(IID_IOPCSyncIO, (void**)&pSyncIO);
+    PrintHR(L"QueryInterface(IOPCSyncIO)", hr);
+    if (FAILED(hr)) goto cleanup_items;
+
+    // 8. Read
+    OPCITEMSTATE* pState = NULL;
+    hr = pSyncIO->Read(
+        OPC_DS_DEVICE,
+        1,
+        &pResult[0].hServer,
+        &pState,
+        &pErrors
+    );
+    PrintHR(L"Read", hr);
+
+    if (SUCCEEDED(hr) && SUCCEEDED(pErrors[0])) {
+        std::wcout << L"Quality = 0x" << std::hex << pState[0].wQuality << std::dec << std::endl;
+        std::wcout << L"Timestamp OK" << std::endl;
+        std::wcout << L"VARTYPE = " << pState[0].vDataValue.vt << std::endl;
+
+        if (pState[0].vDataValue.vt == VT_UI1)
+            std::wcout << L"Value (BYTE) = " << (int)pState[0].vDataValue.bVal << std::endl;
+        else if (pState[0].vDataValue.vt == VT_I4)
+            std::wcout << L"Value (INT) = " << pState[0].vDataValue.lVal << std::endl;
+        else
+            std::wcout << L"Value type unsupported in demo" << std::endl;
+    } else {
+        std::wcout << L"Read item error = 0x"
+                   << std::hex << pErrors[0] << std::dec << std::endl;
+    }
+
+    // cleanup
+    if (pState) CoTaskMemFree(pState);
+    pSyncIO->Release();
+
+cleanup_items:
+    if (pResult) CoTaskMemFree(pResult);
+    if (pErrors) CoTaskMemFree(pErrors);
+    pItemMgt->Release();
+
+release_server:
+    pServer->Release();
+
+cleanup:
+    CoUninitialize();
+    std::wcout << L"=== END ===" << std::endl;
+    return 0;
+}
